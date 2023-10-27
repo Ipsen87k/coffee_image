@@ -1,12 +1,15 @@
 use std::path::PathBuf;
 
-use coffee_image::{coffee_image_io, error::Error, convert::image_wrap::gray_scale};
+use coffee_image::{
+    coffee_image_io::{self, save},
+    convert::image_wrap::ImageConverter,
+    error::Error,
+};
 use iced::{
     executor,
-    widget::{button, column, container, Image, row},
+    widget::{button, column, container, row, Image},
     Application, Command, Length, Settings, Theme,
 };
-
 
 mod coffee_image;
 
@@ -21,12 +24,15 @@ fn main() -> iced::Result {
 struct ImageState {
     image_path: Option<PathBuf>,
     error: Option<Error>,
+    image_converter: ImageConverter,
 }
 
 #[derive(Debug, Clone)]
 enum Message {
     Open,
     ImageOpened(Result<PathBuf, Error>),
+    Save,
+    ImageSaved(Result<PathBuf, Error>),
     Convert,
 }
 
@@ -44,6 +50,7 @@ impl Application for ImageState {
             Self {
                 image_path: None,
                 error: None,
+                image_converter: ImageConverter::new(),
             },
             Command::none(),
         )
@@ -65,8 +72,18 @@ impl Application for ImageState {
                 self.error = Some(error);
                 Command::none()
             }
+            Message::Save => Command::perform(
+                save(self.image_path.clone(), self.image_converter.clone()),
+                Message::ImageSaved,
+            ),
+            Message::ImageSaved(Ok(path)) => Command::none(),
+            Message::ImageSaved(Err(error)) => Command::none(),
             Message::Convert => {
-                let _ =gray_scale(self.image_path.clone().unwrap());
+                self.image_converter = self.image_converter
+                    .clone()
+                    .gray_scale(self.image_path.clone().unwrap()).unwrap_or(ImageConverter::new());
+
+                self.image_path = self.image_converter.clone().get_temp_result_path();
                 Command::none()
             }
         }
@@ -75,11 +92,9 @@ impl Application for ImageState {
     fn view(&self) -> iced::Element<'_, Message> {
         let open_button = button("Open").on_press(Message::Open);
         let convert_button = button("Convert").on_press(Message::Convert);
+        let save_button = button("Save").on_press(Message::Save);
 
-        let controlls = row![
-            open_button,
-            convert_button
-        ].padding(10);
+        let controlls = row![open_button, save_button, convert_button,].padding(10);
 
         let image_path = self.image_path.clone().unwrap_or(PathBuf::from(""));
 
