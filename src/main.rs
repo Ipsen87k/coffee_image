@@ -8,8 +8,9 @@ use coffee_image::{
 
 use iced::{
     executor,
-    widget::{button, column, container, horizontal_space, pick_list, row, Image},
-    Application, Command, Length, Settings, Theme,
+    theme::TextInput,
+    widget::{button, column, container, horizontal_space, pick_list, row, text_input, Image},
+    Application, Command, Length, Settings, Theme, Renderer,
 };
 use select_mode::SelectMode;
 
@@ -29,6 +30,8 @@ struct ImageState {
     error: Option<Error>,
     image_converter: ImageConverter,
     mode: SelectMode,
+    input_value: String,
+    angle_value: i32,
 }
 
 #[derive(Debug, Clone)]
@@ -39,9 +42,11 @@ pub enum Message {
     ImageSaved(Result<PathBuf, Error>),
     Convert,
     Selected(SelectMode),
+    InputChanged(String),
 }
 
 impl Application for ImageState {
+
     type Executor = executor::Default;
 
     type Message = Message;
@@ -57,6 +62,8 @@ impl Application for ImageState {
                 error: None,
                 image_converter: ImageConverter::new(),
                 mode: SelectMode::default(),
+                input_value: "please input angle value".to_string(),
+                angle_value: 0,
             },
             Command::none(),
         )
@@ -100,6 +107,13 @@ impl Application for ImageState {
                             .gray_scale(self.image_path.clone().unwrap())
                             .unwrap_or(ImageConverter::new());
                     }
+                    SelectMode::Rotate => {
+                        self.image_converter = self
+                            .image_converter
+                            .clone()
+                            .rotate(self.image_path.clone().unwrap(), self.angle_value)
+                            .unwrap_or(ImageConverter::new());
+                    }
                 }
 
                 self.image_path = self.image_converter.clone().get_temp_result_path();
@@ -107,6 +121,24 @@ impl Application for ImageState {
             }
             Message::Selected(mode) => {
                 self.mode = mode;
+                Command::none()
+            }
+            Message::InputChanged(value) => {
+                if &self.input_value == "please input angle value"{
+                    self.input_value = String::new();
+                }
+
+                let angle_value = &value.parse::<i32>();
+                match angle_value {
+                    Ok(_angle_value) => {
+                        self.input_value.push_str(&value);
+                        self.angle_value = self.input_value.clone().parse::<i32>().unwrap();
+                        println!("{}",self.angle_value);
+                    }
+                    Err(e) => {
+                    println!("{}",e);
+                    }
+                }
                 Command::none()
             }
         }
@@ -136,6 +168,15 @@ impl Application for ImageState {
                 .height(Length::Fill),
         );
 
+        if self.mode == SelectMode::Rotate {
+            let input_angle_text =
+                text_input(&self.input_value,"").on_input(Message::InputChanged);
+            return container(column!(controlls, input_angle_text, image))
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .padding(10)
+                .into();
+        }
         container(column!(controlls, image))
             .width(Length::Fill)
             .height(Length::Fill)

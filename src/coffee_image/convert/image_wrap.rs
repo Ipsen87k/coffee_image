@@ -1,14 +1,17 @@
+use iced::{ widget::text_input};
 use image::{io::Reader as ImageReader, DynamicImage, GenericImageView};
 use std::path::PathBuf;
 
 use crate::coffee_image::{error::Error, coffee_image_io::get_result_folder, rng::generate_strings};
+
+
 
 #[derive(Debug,Clone)]
 pub struct ImageConverter {
     converted_image: Option<DynamicImage>,
     temp_converted_image_path:Option<PathBuf>,
 }
-
+type std_error = Box<dyn std::error::Error>;
 impl ImageConverter {
     pub fn new() -> Self {
         Self {
@@ -33,6 +36,16 @@ impl ImageConverter {
 
         self.temp_converted_image_path = save_temp_converted_image(&image).ok();
         self.converted_image = Some(image);
+
+        Ok(self)
+    }
+
+    pub fn rotate(mut self,path:PathBuf,rotate_value:i32) -> Result<Self,std_error>{
+        let image = ImageReader::open(path)?.decode()?;
+        let rotate_image = image.huerotate(rotate_value);
+
+        self.temp_converted_image_path = save_temp_converted_image(&rotate_image).ok();
+        self.converted_image = Some(rotate_image);
 
         Ok(self)
     }
