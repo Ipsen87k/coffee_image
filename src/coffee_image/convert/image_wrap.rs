@@ -1,7 +1,7 @@
-use image::{io::Reader as ImageReader, DynamicImage};
+use image::{io::Reader as ImageReader, DynamicImage, GenericImageView};
 use std::path::PathBuf;
 
-use crate::coffee_image::{error::Error, coffee_image_io::get_result_folder};
+use crate::coffee_image::{error::Error, coffee_image_io::get_result_folder, rng::generate_strings};
 
 #[derive(Debug,Clone)]
 pub struct ImageConverter {
@@ -26,6 +26,17 @@ impl ImageConverter {
         Ok(self)
     }
 
+    pub fn bitwise_not(mut self,path:PathBuf) -> Result<Self,Box<dyn std::error::Error>> {
+        let mut image = ImageReader::open(path)?.decode()?;
+        
+        image.invert();
+
+        self.temp_converted_image_path = save_temp_converted_image(&image).ok();
+        self.converted_image = Some(image);
+
+        Ok(self)
+    }
+
     pub fn save_converted_image(self, path: &PathBuf) {
         self.converted_image
             .clone()
@@ -38,8 +49,10 @@ impl ImageConverter {
 }
 //https://www.youtube.com/watch?v=t4DmszQfD-Q
 fn save_temp_converted_image(temp_image:&DynamicImage) -> Result<PathBuf,Error> {
+    let file_name = format!("{}.jpg",generate_strings());
+
     let temp_image_path = get_result_folder().map(|mut path| {
-        path.push("gray.jpg");
+        path.push(file_name);
         path
     })?;
 

@@ -5,14 +5,17 @@ use coffee_image::{
     convert::image_wrap::ImageConverter,
     error::Error,
 };
+
 use iced::{
     executor,
-    widget::{button, column, container, row, Image},
+    widget::{button, column, container, horizontal_space, pick_list, row, Image},
     Application, Command, Length, Settings, Theme,
 };
+use select_mode::SelectMode;
 
 mod coffee_image;
-
+mod components;
+mod select_mode;
 //https://github.com/iced-rs/iced
 //https://docs.rs/iced/latest/iced/
 //https://zenn.dev/tris/articles/e60efe7c60a770
@@ -25,15 +28,17 @@ struct ImageState {
     image_path: Option<PathBuf>,
     error: Option<Error>,
     image_converter: ImageConverter,
+    mode: SelectMode,
 }
 
 #[derive(Debug, Clone)]
-enum Message {
+pub enum Message {
     Open,
     ImageOpened(Result<PathBuf, Error>),
     Save,
     ImageSaved(Result<PathBuf, Error>),
     Convert,
+    Selected(SelectMode),
 }
 
 impl Application for ImageState {
@@ -51,6 +56,7 @@ impl Application for ImageState {
                 image_path: None,
                 error: None,
                 image_converter: ImageConverter::new(),
+                mode: SelectMode::default(),
             },
             Command::none(),
         )
@@ -73,17 +79,34 @@ impl Application for ImageState {
                 Command::none()
             }
             Message::Save => Command::perform(
-                save(self.image_path.clone(), self.image_converter.clone()),
+                save(None, self.image_converter.clone()),
                 Message::ImageSaved,
             ),
             Message::ImageSaved(Ok(path)) => Command::none(),
             Message::ImageSaved(Err(error)) => Command::none(),
             Message::Convert => {
-                self.image_converter = self.image_converter
-                    .clone()
-                    .gray_scale(self.image_path.clone().unwrap()).unwrap_or(ImageConverter::new());
+                match self.mode {
+                    SelectMode::BitwiseNot => {
+                        self.image_converter = self
+                            .image_converter
+                            .clone()
+                            .bitwise_not(self.image_path.clone().unwrap())
+                            .unwrap_or(ImageConverter::new());
+                    }
+                    SelectMode::Gray => {
+                        self.image_converter = self
+                            .image_converter
+                            .clone()
+                            .gray_scale(self.image_path.clone().unwrap())
+                            .unwrap_or(ImageConverter::new());
+                    }
+                }
 
                 self.image_path = self.image_converter.clone().get_temp_result_path();
+                Command::none()
+            }
+            Message::Selected(mode) => {
+                self.mode = mode;
                 Command::none()
             }
         }
@@ -94,7 +117,16 @@ impl Application for ImageState {
         let convert_button = button("Convert").on_press(Message::Convert);
         let save_button = button("Save").on_press(Message::Save);
 
-        let controlls = row![open_button, save_button, convert_button,].padding(10);
+        let select_mode_pick_list =
+            pick_list(&SelectMode::ALL[..], Some(self.mode), Message::Selected);
+        let controlls = row![
+            open_button,
+            save_button,
+            convert_button,
+            horizontal_space(Length::Fill),
+            select_mode_pick_list
+        ]
+        .padding(10);
 
         let image_path = self.image_path.clone().unwrap_or(PathBuf::from(""));
 
