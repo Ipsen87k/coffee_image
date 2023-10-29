@@ -107,12 +107,15 @@ impl Application for ImageState {
                             .gray_scale(self.image_path.clone().unwrap())
                             .unwrap_or(ImageConverter::new());
                     }
-                    SelectMode::Rotate => {
+                    SelectMode::HueRotate => {
                         self.image_converter = self
                             .image_converter
                             .clone()
-                            .rotate(self.image_path.clone().unwrap(), self.angle_value)
+                            .hue_rotate(self.image_path.clone().unwrap(), self.angle_value)
                             .unwrap_or(ImageConverter::new());
+                    }
+                    SelectMode::ToAscii => {
+                        self.image_converter.clone().ascii_art(self.image_path.clone().unwrap(), 4);
                     }
                 }
 
@@ -168,7 +171,7 @@ impl Application for ImageState {
                 .height(Length::Fill),
         );
 
-        if self.mode == SelectMode::Rotate {
+        if self.mode == SelectMode::HueRotate {
             let input_angle_text =
                 text_input(&self.input_value,"").on_input(Message::InputChanged);
             return container(column!(controlls, input_angle_text, image))

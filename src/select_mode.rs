@@ -5,11 +5,12 @@ pub enum SelectMode {
     #[default]
     Gray,
     BitwiseNot,
-    Rotate,
+    HueRotate,
+    ToAscii,
 }
 
 impl SelectMode {
-    pub const ALL: [SelectMode; 3] = [SelectMode::BitwiseNot, SelectMode::Gray,SelectMode::Rotate];
+    pub const ALL: [SelectMode; 4] = [SelectMode::BitwiseNot, SelectMode::Gray,SelectMode::HueRotate,SelectMode::ToAscii];
 }
 
 impl Display for SelectMode {
@@ -20,7 +21,8 @@ impl Display for SelectMode {
             match self {
                 SelectMode::Gray => "Gray",
                 SelectMode::BitwiseNot => "Invert",
-                SelectMode::Rotate => "Rotate",
+                SelectMode::HueRotate => "HueRotate",
+                SelectMode::ToAscii => "ToAscii",
             }
         )
     }
