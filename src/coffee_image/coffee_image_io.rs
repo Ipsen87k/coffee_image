@@ -1,6 +1,6 @@
-use std::{path::PathBuf, env};
-
-use super::{error::Error, convert::image_wrap::ImageConverter, };
+use std::{path::PathBuf, env, fs::File};
+use std::io::prelude::{BufRead,Write};
+use super::{error::Error, convert::image_wrap::ImageConverter, rng::generate_strings, };
 
 const RESULT_FOLDER_NAME:&str = ".resultImages";
 
@@ -34,4 +34,41 @@ pub fn get_result_folder() -> Result<PathBuf,Error> {
     result_folder_path.push(RESULT_FOLDER_NAME);
 
     Ok(result_folder_path)
+}
+
+
+pub struct TextFile{
+    file:File,
+}
+
+impl TextFile {
+    pub fn open_text() -> Self {
+        let temp_text_file_name = format!("{}.txt",generate_strings());
+    
+        let path = get_result_folder().map(|mut save_path|{
+            save_path.push(temp_text_file_name);
+            save_path
+        });
+
+        let text_file = TextFile{file:match File::create(path.unwrap()) {
+            Ok(file)=> file,
+            Err(error) => panic!("{}",error),
+        }};
+    
+        text_file
+    }
+    
+    pub fn write_char(&mut self,output_char:&str){
+        self.file.write(output_char.as_bytes());
+    }
+    
+    pub fn close_file(self){
+        todo!()
+    }
+}
+
+impl Drop for TextFile{
+    fn drop(&mut self) {
+      println!("Text File は閉じられました")  
+    }
 }

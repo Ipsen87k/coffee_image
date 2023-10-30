@@ -1,9 +1,8 @@
-use iced::widget::{text_input, Image};
 use image::{io::Reader as ImageReader, DynamicImage, GenericImageView};
 use std::{path::PathBuf};
                           
 use crate::coffee_image::{
-    coffee_image_io::get_result_folder, error::Error, rng::generate_strings,
+    coffee_image_io::{get_result_folder, TextFile}, error::Error, rng::generate_strings, string_art::ascii::get_str_ascii, 
 };
 
 //https://docs.rs/image/latest/image/
@@ -55,6 +54,8 @@ impl ImageConverter {
         let image = self.get_dynamic_image(path)?;
         let (width, height) = image.dimensions();
 
+        let mut out_put = TextFile::open_text();
+
         for y in 0..height {
             for x in 0..width {
                 if y % (scale * 2) == 0 && x % scale == 0 {
@@ -63,11 +64,11 @@ impl ImageConverter {
                     if pixel[3] == 0 {
                         intent = 0;
                     }
-                    print!("{}", get_str_ascii(intent));
+                    out_put.write_char(get_str_ascii(intent));
                 }
             }
             if y % (scale * 2) == 0 {
-                println!("");
+                out_put.write_char("\n")
             }
         }
         Ok(())
@@ -102,10 +103,4 @@ fn save_temp_converted_image(temp_image: &DynamicImage) -> Result<PathBuf, Error
     Ok(temp_image_path)
 }
 
-fn get_str_ascii(intent: u8) -> &'static str {
-    let index = intent / 32;
-    let ascii = ["", ".", ",", "-", "~", "+", "=", "@"];
-
-    return ascii[index as usize];
-}
 
