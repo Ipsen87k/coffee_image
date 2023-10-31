@@ -1,6 +1,8 @@
 use image::{io::Reader as ImageReader, DynamicImage, GenericImageView};
 use std::{path::PathBuf};
+use std::io::prelude::Write;
                           
+use crate::coffee_image::string_art::ascii::get_byte_ascii;
 use crate::coffee_image::{
     coffee_image_io::{get_result_folder, TextFile}, error::Error, rng::generate_strings, string_art::ascii::get_str_ascii, 
 };
@@ -50,11 +52,11 @@ impl ImageConverter {
         Ok(self)
     }
 
-    pub fn ascii_art(self, path: PathBuf, scale: u32) -> Result<(), StdError> {
+    pub fn ascii_art(self, path: PathBuf, scale: u32) -> Result<PathBuf, StdError> {
         let image = self.get_dynamic_image(path)?;
         let (width, height) = image.dimensions();
 
-        let mut out_put = TextFile::open_text();
+        let (mut output,path) = TextFile::new();
 
         for y in 0..height {
             for x in 0..width {
@@ -64,14 +66,14 @@ impl ImageConverter {
                     if pixel[3] == 0 {
                         intent = 0;
                     }
-                    out_put.write_char(get_str_ascii(intent));
+                    output.write(get_byte_ascii(intent));
                 }
             }
             if y % (scale * 2) == 0 {
-                out_put.write_char("\n")
+                output.write(b"\n");
             }
         }
-        Ok(())
+        Ok(path)
     }
 
     pub fn save_converted_image(self, path: &PathBuf) {

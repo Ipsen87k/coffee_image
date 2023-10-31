@@ -1,22 +1,22 @@
 use std::path::PathBuf;
-
 use coffee_image::{
-    coffee_image_io::{self, save},
+    coffee_image_io::{self, save, get_result_folder, remove_all_temp_file},
     convert::image_wrap::ImageConverter,
     error::Error,
 };
 
 use iced::{
     executor,
-    theme::TextInput,
     widget::{button, column, container, horizontal_space, pick_list, row, text_input, Image},
-    Application, Command, Length, Settings, Theme, Renderer,
+    Application, Command, Length, Settings, Theme, 
 };
 use select_mode::SelectMode;
+use text_viewer_::TextViewerState;
 
 mod coffee_image;
 mod components;
 mod select_mode;
+mod text_viewer_;
 //https://github.com/iced-rs/iced
 //https://docs.rs/iced/latest/iced/
 //https://zenn.dev/tris/articles/e60efe7c60a770
@@ -32,8 +32,18 @@ struct ImageState {
     mode: SelectMode,
     input_value: String,
     angle_value: i32,
+    view_state:ViewState,
 }
-
+#[derive(Debug, Clone)]
+struct ViewState {
+    current_view:Views,
+    text_view:Option<TextViewerState>,
+}
+#[derive(Debug, Clone)]
+enum Views{
+    Image,
+    Text,
+}
 #[derive(Debug, Clone)]
 pub enum Message {
     Open,
@@ -64,6 +74,7 @@ impl Application for ImageState {
                 mode: SelectMode::default(),
                 input_value: "please input angle value".to_string(),
                 angle_value: 0,
+                view_state:ViewState { current_view: Views::Image, text_view: None }
             },
             Command::none(),
         )
@@ -115,7 +126,10 @@ impl Application for ImageState {
                             .unwrap_or(ImageConverter::new());
                     }
                     SelectMode::ToAscii => {
-                        self.image_converter.clone().ascii_art(self.image_path.clone().unwrap(), 4);
+                        let path =self.image_converter.clone().ascii_art(self.image_path.clone().unwrap(), 4);
+
+                        self.view_state.text_view= Some(TextViewerState::new(path.unwrap()));
+                        self.view_state.current_view = Views::Text;
                     }
                 }
 
@@ -180,14 +194,25 @@ impl Application for ImageState {
                 .padding(10)
                 .into();
         }
-        container(column!(controlls, image))
+        let image_view = container(column!(controlls, image))
             .width(Length::Fill)
             .height(Length::Fill)
             .padding(10)
-            .into()
+            .into();
+
+        match self.view_state.current_view {
+            Views::Image => image_view,
+            Views::Text => self.view_state.text_view.as_ref().unwrap().view(),
+        }
     }
 
     fn theme(&self) -> Self::Theme {
         Theme::Dark
+    }
+}
+
+impl Drop for ImageState{
+    fn drop(&mut self) {
+        remove_all_temp_file();
     }
 }
