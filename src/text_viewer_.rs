@@ -1,5 +1,5 @@
 use iced::{
-    widget::{container, text},
+    widget::{container, text, button, row, column},
     Length,
 };
 use std::io::prelude::Read;
@@ -22,6 +22,9 @@ impl TextViewerState {
         }
     }
     pub fn view(&self) -> iced::Element<'_, Message> {
+        let change_view_button=button("Return Main").on_press(Message::ViewChanged(crate::Views::Image));
+        let controll = row![change_view_button];
+        
         let content_or_error_text = match &self.content_or_error {
             Ok(content) => text(content).size(8),
             Err(error) => {
@@ -30,7 +33,7 @@ impl TextViewerState {
             }
         };
 
-        container(content_or_error_text)
+        container(column![controll,content_or_error_text])
             .width(Length::Fill)
             .height(Length::Fill)
             .center_x()

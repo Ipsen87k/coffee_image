@@ -8,7 +8,7 @@ use coffee_image::{
 use iced::{
     executor,
     widget::{button, column, container, horizontal_space, pick_list, row, text_input, Image},
-    Application, Command, Length, Settings, Theme, 
+    Application, Command, Length, Settings, Theme, Element, 
 };
 use select_mode::SelectMode;
 use text_viewer_::TextViewerState;
@@ -40,7 +40,7 @@ struct ViewState {
     text_view:Option<TextViewerState>,
 }
 #[derive(Debug, Clone)]
-enum Views{
+pub enum Views{
     Image,
     Text,
 }
@@ -53,6 +53,7 @@ pub enum Message {
     Convert,
     Selected(SelectMode),
     InputChanged(String),
+    ViewChanged(Views),
 }
 
 impl Application for ImageState {
@@ -158,11 +159,15 @@ impl Application for ImageState {
                 }
                 Command::none()
             }
+            Message::ViewChanged(views) =>{
+                self.view_state.current_view = views;
+                Command::none()
+            }
         }
     }
 
     fn view(&self) -> iced::Element<'_, Message> {
-        let open_button = button("Open").on_press(Message::Open);
+        let open_button=button("Open").on_press(Message::Open);
         let convert_button = button("Convert").on_press(Message::Convert);
         let save_button = button("Save").on_press(Message::Save);
 

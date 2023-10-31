@@ -6,7 +6,7 @@ use iced::{
 
 use crate::{Message};
 
-pub fn button_component<'a>(
+pub fn button_component_font<'a>(
     content: Element<'a, Message>,
     label: &str,
     on_press: Option<Message>,
