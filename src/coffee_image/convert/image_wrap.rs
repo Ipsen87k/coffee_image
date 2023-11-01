@@ -1,10 +1,13 @@
+use iced::widget::Image;
 use image::{io::Reader as ImageReader, DynamicImage, GenericImageView};
-use std::{path::PathBuf};
+use std::path::PathBuf;
 use std::io::prelude::Write;
                           
+use crate::coffee_image::io::coffee_image_io::get_result_folder;
+use crate::coffee_image::io::text::TextFile;
 use crate::coffee_image::string_art::ascii::get_byte_ascii;
 use crate::coffee_image::{
-    coffee_image_io::{get_result_folder, TextFile}, error::Error, rng::generate_strings, string_art::ascii::get_str_ascii, 
+    error::Error, rng::generate_strings
 };
 
 //https://docs.rs/image/latest/image/
@@ -14,49 +17,38 @@ pub struct ImageConverter {
     temp_converted_image_path: Option<PathBuf>,
 }
 type StdError = Box<dyn std::error::Error>;
+
+//Convert Methods
 impl ImageConverter {
-    pub fn new() -> Self {
-        Self {
-            converted_image: None,
-            temp_converted_image_path: None,
-        }
-    }
+
     pub fn gray_scale(mut self, path: PathBuf) -> Result<Self, Box<dyn std::error::Error>> {
         let image = ImageReader::open(path)?.decode()?;
 
         let gray_image = image.grayscale();
-        self.temp_converted_image_path = save_temp_converted_image(&gray_image).ok();
-        self.converted_image = Some(gray_image);
 
-        Ok(self)
+        Ok(self.save_temp_result_image(gray_image))
     }
 
-    pub fn bitwise_not(mut self, path: PathBuf) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn bitwise_not(&mut self, path: PathBuf) -> Result<Self, Box<dyn std::error::Error>> {
         let mut image = ImageReader::open(path)?.decode()?;
 
         image.invert();
 
-        self.temp_converted_image_path = save_temp_converted_image(&image).ok();
-        self.converted_image = Some(image);
-
-        Ok(self)
+        Ok(self.save_temp_result_image(image))
     }
 
-    pub fn hue_rotate(mut self, path: PathBuf, rotate_value: i32) -> Result<Self, StdError> {
+    pub fn hue_rotate(&mut self, path: PathBuf, rotate_value: i32) -> Result<Self, StdError> {
         let image = ImageReader::open(path)?.decode()?;
         let rotate_image = image.huerotate(rotate_value);
 
-        self.temp_converted_image_path = save_temp_converted_image(&rotate_image).ok();
-        self.converted_image = Some(rotate_image);
-
-        Ok(self)
+        Ok(self.save_temp_result_image(rotate_image))
     }
 
-    pub fn ascii_art(self, path: PathBuf, scale: u32) -> Result<PathBuf, StdError> {
+    pub fn ascii_art(self, path: PathBuf, scale: u32) -> Result<TextFile, StdError> {
         let image = self.get_dynamic_image(path)?;
         let (width, height) = image.dimensions();
 
-        let (mut output,path) = TextFile::new();
+        let (text_file,mut output) = TextFile::new();
 
         for y in 0..height {
             for x in 0..width {
@@ -73,10 +65,21 @@ impl ImageConverter {
                 output.write(b"\n");
             }
         }
-        Ok(path)
+        Ok(text_file)
     }
 
-    pub fn save_converted_image(self, path: &PathBuf) {
+
+}
+//https://www.youtube.com/watch?v=t4DmszQfD-Q
+//汎用的なメッソド
+impl ImageConverter{
+    pub fn new() -> Self {
+        Self {
+            converted_image: None,
+            temp_converted_image_path: None,
+        }
+    }
+    pub fn save_converted_image(&self, path: &PathBuf) {
         self.converted_image
             .clone()
             .map(|result_image| result_image.save(path));
@@ -90,19 +93,19 @@ impl ImageConverter {
         let image = ImageReader::open(path)?.decode()?;
         Ok(image)
     }
+    fn save_temp_result_image(&mut self,temp_image: DynamicImage) -> Self{
+        let file_name = format!("{}.jpg",generate_strings());
+
+        let temp_image_path = get_result_folder().map(|mut path| {
+            path.push(file_name);
+            path
+        }).ok();
+
+        let _ =&temp_image.save(temp_image_path.as_ref().unwrap());
+
+        self.temp_converted_image_path = temp_image_path;
+        self.converted_image = Some(temp_image);
+
+        self.clone()
+    }
 }
-//https://www.youtube.com/watch?v=t4DmszQfD-Q
-fn save_temp_converted_image(temp_image: &DynamicImage) -> Result<PathBuf, Error> {
-    let file_name = format!("{}.jpg", generate_strings());
-
-    let temp_image_path = get_result_folder().map(|mut path| {
-        path.push(file_name);
-        path
-    })?;
-
-    temp_image.save(temp_image_path.clone());
-
-    Ok(temp_image_path)
-}
-
-

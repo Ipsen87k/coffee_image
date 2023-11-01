@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use coffee_image::{
-    coffee_image_io::{self, save, get_result_folder, remove_all_temp_file},
+    io::coffee_image_io::{self, save, get_result_folder, remove_all_temp_file},
     convert::image_wrap::ImageConverter,
     error::Error,
 };
@@ -22,6 +22,7 @@ mod text_viewer_;
 //https://zenn.dev/tris/articles/e60efe7c60a770
 fn main() -> iced::Result {
     ImageState::run(Settings::default())
+
 }
 
 #[derive(Debug, Clone)]
@@ -118,6 +119,8 @@ impl Application for ImageState {
                             .clone()
                             .gray_scale(self.image_path.clone().unwrap())
                             .unwrap_or(ImageConverter::new());
+
+                        println!("Gray");
                     }
                     SelectMode::HueRotate => {
                         self.image_converter = self

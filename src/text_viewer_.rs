@@ -2,10 +2,10 @@ use iced::{
     widget::{container, text, button, row, column},
     Length,
 };
-use std::io::prelude::Read;
+
 use std::path::PathBuf;
 
-use crate::{coffee_image::error::Error, Message};
+use crate::{coffee_image::{error::Error, io::text::TextFile}, Message};
 
 #[derive(Debug, Clone)]
 pub struct TextViewerState {
@@ -14,11 +14,11 @@ pub struct TextViewerState {
 }
 
 impl TextViewerState {
-    pub fn new(path: PathBuf) -> Self {
-        let result = read_text_file(path.clone());
+    pub fn new(text_file:TextFile) -> Self {
+        let result = text_file.read_text_file();
         Self {
             content_or_error: result,
-            text_path: Some(path),
+            text_path: Some(text_file.get_result_text_file()),
         }
     }
     pub fn view(&self) -> iced::Element<'_, Message> {
@@ -40,15 +40,5 @@ impl TextViewerState {
             .center_y()
             .into()
     }
-}
-
-pub fn read_text_file(path: PathBuf) -> Result<String, Error> {
-    let mut content = String::new();
-    let _ = std::fs::File::open(path)
-        .map_err(|error| error.kind())
-        .map_err(Error::IOFailed)?
-        .read_to_string(&mut content);
-
-    Ok(content)
 }
 
