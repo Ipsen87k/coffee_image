@@ -1,6 +1,7 @@
-use std::fs::{read_dir, remove_file};
+use std::fs::{read_dir, remove_file, self};
 
 use std::io::prelude::Write;
+
 use std::{env, fs::File, path::PathBuf};
 
 use crate::coffee_image::convert::image_wrap::ImageConverter;
@@ -56,4 +57,20 @@ pub fn remove_all_temp_file(){
 
     }
     
+}
+
+pub fn mkdir_result_temp_folder() -> Result<(),Error>{
+    let result_temp_dir = get_result_folder()?;
+
+    if let Ok(metadata) = fs::metadata(&result_temp_dir) {
+        if metadata.is_dir(){
+            //fallthrough
+        }else{
+            let _ = fs::create_dir(result_temp_dir).map_err(|error| error.kind()).map_err(Error::IOFailed)?;
+        }
+    }else{
+        let _ = fs::create_dir(result_temp_dir).map_err(|error| error.kind()).map_err(Error::IOFailed)?;
+    }
+    Ok(())
+
 }

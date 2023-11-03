@@ -29,6 +29,14 @@ impl ImageConverter {
         Ok(self.save_temp_result_image(gray_image))
     }
 
+    pub fn blur(&mut self,path:&PathBuf,blur_value:f32) ->Result<Self,StdError>{
+        let image = self.get_dynamic_image(path)?;
+
+        let bulred_image= image.blur(blur_value);
+
+        Ok(self.save_temp_result_image(bulred_image))
+    }
+
     pub fn bitwise_not(&mut self, path: PathBuf) -> Result<Self, Box<dyn std::error::Error>> {
         let mut image = ImageReader::open(path)?.decode()?;
 
@@ -44,7 +52,7 @@ impl ImageConverter {
         Ok(self.save_temp_result_image(rotate_image))
     }
 
-    pub fn ascii_art(self, path: PathBuf, scale: u32) -> Result<TextFile, StdError> {
+    pub fn ascii_art(self, path: &PathBuf, scale: u32) -> Result<TextFile, StdError> {
         let image = self.get_dynamic_image(path)?;
         let (width, height) = image.dimensions();
 
@@ -89,7 +97,7 @@ impl ImageConverter{
         self.temp_converted_image_path
     }
 
-    fn get_dynamic_image(self, path: PathBuf) -> Result<DynamicImage, StdError> {
+    fn get_dynamic_image(&self, path: &PathBuf) -> Result<DynamicImage, StdError> {
         let image = ImageReader::open(path)?.decode()?;
         Ok(image)
     }

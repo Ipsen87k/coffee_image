@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use coffee_image::{
-    io::coffee_image_io::{self, save, get_result_folder, remove_all_temp_file},
+    io::coffee_image_io::{self, save, get_result_folder, remove_all_temp_file, mkdir_result_temp_folder},
     convert::image_wrap::ImageConverter,
     error::Error,
 };
@@ -21,6 +21,7 @@ mod text_viewer_;
 //https://docs.rs/iced/latest/iced/
 //https://zenn.dev/tris/articles/e60efe7c60a770
 fn main() -> iced::Result {
+    init();
     ImageState::run(Settings::default())
 
 }
@@ -103,7 +104,9 @@ impl Application for ImageState {
                 Message::ImageSaved,
             ),
             Message::ImageSaved(Ok(path)) => Command::none(),
-            Message::ImageSaved(Err(error)) => Command::none(),
+            Message::ImageSaved(Err(error)) => {
+                self.error = Some(error);
+                Command::none()}
             Message::Convert => {
                 match self.mode {
                     SelectMode::BitwiseNot => {
@@ -129,8 +132,11 @@ impl Application for ImageState {
                             .hue_rotate(self.image_path.clone().unwrap(), self.angle_value)
                             .unwrap_or(ImageConverter::new());
                     }
+                    SelectMode::Blur =>{
+                        self.image_converter= self.image_converter.clone().blur(self.image_path.as_ref().unwrap(), 34.3).unwrap_or(ImageConverter::new());
+                    }
                     SelectMode::ToAscii => {
-                        let path =self.image_converter.clone().ascii_art(self.image_path.clone().unwrap(), 4);
+                        let path =self.image_converter.clone().ascii_art(self.image_path.as_ref().unwrap(), 4);
 
                         self.view_state.text_view= Some(TextViewerState::new(path.unwrap()));
                         self.view_state.current_view = Views::Text;
@@ -223,4 +229,8 @@ impl Drop for ImageState{
     fn drop(&mut self) {
         remove_all_temp_file();
     }
+}
+
+fn init(){
+    let _ = mkdir_result_temp_folder();
 }
