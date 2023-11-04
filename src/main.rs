@@ -1,14 +1,17 @@
-use std::path::PathBuf;
 use coffee_image::{
-    io::coffee_image_io::{self, save, get_result_folder, remove_all_temp_file, mkdir_result_temp_folder},
     convert::image_wrap::ImageConverter,
     error::Error,
+    io::coffee_image_io::{
+        self, mkdir_result_temp_folder, remove_all_temp_file, save,
+    }, save_format::{self, SaveFormat},
 };
+
+use std::path::PathBuf;
 
 use iced::{
     executor,
     widget::{button, column, container, horizontal_space, pick_list, row, text_input, Image},
-    Application, Command, Length, Settings, Theme, Element, 
+    Application, Command, Element, Length, Settings, Theme,
 };
 use select_mode::SelectMode;
 use text_viewer_::TextViewerState;
@@ -23,7 +26,6 @@ mod text_viewer_;
 fn main() -> iced::Result {
     init();
     ImageState::run(Settings::default())
-
 }
 
 #[derive(Debug, Clone)]
@@ -32,17 +34,18 @@ struct ImageState {
     error: Option<Error>,
     image_converter: ImageConverter,
     mode: SelectMode,
+    save_format:SaveFormat,
     input_value: String,
     angle_value: i32,
-    view_state:ViewState,
+    view_state: ViewState,
 }
 #[derive(Debug, Clone)]
 struct ViewState {
-    current_view:Views,
-    text_view:Option<TextViewerState>,
+    current_view: Views,
+    text_view: Option<TextViewerState>,
 }
 #[derive(Debug, Clone)]
-pub enum Views{
+pub enum Views {
     Image,
     Text,
 }
@@ -53,13 +56,14 @@ pub enum Message {
     Save,
     ImageSaved(Result<PathBuf, Error>),
     Convert,
+    GrayConverted(Result<ImageConverter,Error>),
     Selected(SelectMode),
     InputChanged(String),
     ViewChanged(Views),
+    SaveFormatSelected(SaveFormat),
 }
 
 impl Application for ImageState {
-
     type Executor = executor::Default;
 
     type Message = Message;
@@ -75,9 +79,13 @@ impl Application for ImageState {
                 error: None,
                 image_converter: ImageConverter::new(),
                 mode: SelectMode::default(),
+                save_format:SaveFormat::default(),
                 input_value: "please input angle value".to_string(),
                 angle_value: 0,
-                view_state:ViewState { current_view: Views::Image, text_view: None }
+                view_state: ViewState {
+                    current_view: Views::Image,
+                    text_view: None,
+                },
             },
             Command::none(),
         )
@@ -100,13 +108,14 @@ impl Application for ImageState {
                 Command::none()
             }
             Message::Save => Command::perform(
-                save(None, self.image_converter.clone()),
+                save(None, self.image_converter.clone(),self.save_format.clone()),
                 Message::ImageSaved,
             ),
             Message::ImageSaved(Ok(path)) => Command::none(),
             Message::ImageSaved(Err(error)) => {
                 self.error = Some(error);
-                Command::none()}
+                Command::none()
+            }
             Message::Convert => {
                 match self.mode {
                     SelectMode::BitwiseNot => {
@@ -123,7 +132,6 @@ impl Application for ImageState {
                             .gray_scale(self.image_path.clone().unwrap())
                             .unwrap_or(ImageConverter::new());
 
-                        println!("Gray");
                     }
                     SelectMode::HueRotate => {
                         self.image_converter = self
@@ -132,13 +140,21 @@ impl Application for ImageState {
                             .hue_rotate(self.image_path.clone().unwrap(), self.angle_value)
                             .unwrap_or(ImageConverter::new());
                     }
-                    SelectMode::Blur =>{
-                        self.image_converter= self.image_converter.clone().blur(self.image_path.as_ref().unwrap(), 34.3).unwrap_or(ImageConverter::new());
+                    SelectMode::Blur => {
+                        self.image_converter = self
+                            .image_converter
+                            .clone()
+                            .blur(self.image_path.as_ref().unwrap(), 34.3)
+                            .unwrap_or(ImageConverter::new());
+  
                     }
                     SelectMode::ToAscii => {
-                        let path =self.image_converter.clone().ascii_art(self.image_path.as_ref().unwrap(), 4);
+                        let path = self
+                            .image_converter
+                            .clone()
+                            .ascii_art(self.image_path.as_ref().unwrap(), 4);
 
-                        self.view_state.text_view= Some(TextViewerState::new(path.unwrap()));
+                        self.view_state.text_view = Some(TextViewerState::new(path.unwrap()));
                         self.view_state.current_view = Views::Text;
                     }
                 }
@@ -146,12 +162,24 @@ impl Application for ImageState {
                 self.image_path = self.image_converter.clone().get_temp_result_path();
                 Command::none()
             }
+            Message::GrayConverted(result)=>{
+                match result {
+                    Ok(image_converter)=>{self.image_converter=image_converter}
+                    Err(error)=>{self.error = Some(error)}
+                }
+
+                Command::none()
+            }
             Message::Selected(mode) => {
                 self.mode = mode;
                 Command::none()
             }
+            Message::SaveFormatSelected(save_format) =>{
+                self.save_format = save_format;
+                Command::none()
+            }
             Message::InputChanged(value) => {
-                if &self.input_value == "please input angle value"{
+                if &self.input_value == "please input angle value" {
                     self.input_value = String::new();
                 }
 
@@ -160,15 +188,15 @@ impl Application for ImageState {
                     Ok(_angle_value) => {
                         self.input_value.push_str(&value);
                         self.angle_value = self.input_value.clone().parse::<i32>().unwrap();
-                        println!("{}",self.angle_value);
+                        println!("{}", self.angle_value);
                     }
                     Err(e) => {
-                    println!("{}",e);
+                        println!("{}", e);
                     }
                 }
                 Command::none()
             }
-            Message::ViewChanged(views) =>{
+            Message::ViewChanged(views) => {
                 self.view_state.current_view = views;
                 Command::none()
             }
@@ -176,17 +204,20 @@ impl Application for ImageState {
     }
 
     fn view(&self) -> iced::Element<'_, Message> {
-        let open_button=button("Open").on_press(Message::Open);
+        let open_button = button("Open").on_press(Message::Open);
         let convert_button = button("Convert").on_press(Message::Convert);
         let save_button = button("Save").on_press(Message::Save);
 
         let select_mode_pick_list =
             pick_list(&SelectMode::ALL[..], Some(self.mode), Message::Selected);
+        let save_format_list = pick_list(&SaveFormat::ALL[..], Some(self.save_format), Message::SaveFormatSelected);
+
         let controlls = row![
             open_button,
             save_button,
             convert_button,
             horizontal_space(Length::Fill),
+            save_format_list,
             select_mode_pick_list
         ]
         .padding(10);
@@ -201,7 +232,7 @@ impl Application for ImageState {
 
         if self.mode == SelectMode::HueRotate {
             let input_angle_text =
-                text_input(&self.input_value,"").on_input(Message::InputChanged);
+                text_input(&self.input_value, "").on_input(Message::InputChanged);
             return container(column!(controlls, input_angle_text, image))
                 .width(Length::Fill)
                 .height(Length::Fill)
@@ -225,12 +256,12 @@ impl Application for ImageState {
     }
 }
 
-impl Drop for ImageState{
+impl Drop for ImageState {
     fn drop(&mut self) {
         remove_all_temp_file();
     }
 }
 
-fn init(){
+fn init() {
     let _ = mkdir_result_temp_folder();
 }
