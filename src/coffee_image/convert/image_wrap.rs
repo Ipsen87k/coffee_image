@@ -11,7 +11,7 @@ use crate::coffee_image::string_art::ascii::get_byte_ascii;
 use crate::coffee_image::{error::Error, rng::generate_strings};
 
 //https://docs.rs/image/latest/image/
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone,Default)]
 pub struct ImageConverter {
     temp_converted_image_path: Option<PathBuf>,
 }

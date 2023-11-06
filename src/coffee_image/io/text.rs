@@ -5,7 +5,7 @@ use crate::coffee_image::{rng::generate_strings, error::Error};
 
 use super::coffee_image_io::get_result_folder;
 
-#[derive(Debug)]
+#[derive(Debug,Default)]
 pub struct TextFile {
     save_temp_path: PathBuf,
 }

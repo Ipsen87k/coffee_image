@@ -1,9 +1,11 @@
 use coffee_image::{
     convert::image_wrap::ImageConverter,
     error::Error,
-    io::coffee_image_io::{
-        self, mkdir_result_temp_folder, remove_all_temp_file, save,
-    }, save_format::{self, SaveFormat},
+    io::{
+        coffee_image_io::{self, mkdir_result_temp_folder, remove_all_temp_file, save},
+        dialog::error_dialog_show,
+    },
+    save_format::{self, SaveFormat},
 };
 
 use std::path::PathBuf;
@@ -34,7 +36,7 @@ struct ImageState {
     error: Option<Error>,
     image_converter: ImageConverter,
     mode: SelectMode,
-    save_format:SaveFormat,
+    save_format: SaveFormat,
     input_value: String,
     angle_value: i32,
     view_state: ViewState,
@@ -56,7 +58,7 @@ pub enum Message {
     Save,
     ImageSaved(Result<PathBuf, Error>),
     Convert,
-    GrayConverted(Result<ImageConverter,Error>),
+    GrayConverted(Result<ImageConverter, Error>),
     Selected(SelectMode),
     InputChanged(String),
     ViewChanged(Views),
@@ -79,7 +81,7 @@ impl Application for ImageState {
                 error: None,
                 image_converter: ImageConverter::new(),
                 mode: SelectMode::default(),
-                save_format:SaveFormat::default(),
+                save_format: SaveFormat::default(),
                 input_value: "please input angle value".to_string(),
                 angle_value: 0,
                 view_state: ViewState {
@@ -104,49 +106,42 @@ impl Application for ImageState {
                 Command::none()
             }
             Message::ImageOpened(Err(error)) => {
-                self.error = Some(error);
+                self.error = Some(error.clone());
+                error_dialog_show(error);
                 Command::none()
             }
             Message::Save => Command::perform(
-                save(None, self.image_converter.clone(),self.save_format.clone()),
+                save(None, self.image_converter.clone(), self.save_format.clone()),
                 Message::ImageSaved,
             ),
             Message::ImageSaved(Ok(path)) => Command::none(),
             Message::ImageSaved(Err(error)) => {
-                self.error = Some(error);
+                self.error = Some(error.clone());
+                error_dialog_show(error);
                 Command::none()
             }
             Message::Convert => {
+                let mut converter = self.image_converter.clone();
                 match self.mode {
                     SelectMode::BitwiseNot => {
-                        self.image_converter = self
-                            .image_converter
-                            .clone()
+                        self.image_converter = converter
                             .bitwise_not(self.image_path.clone().unwrap())
-                            .unwrap_or(ImageConverter::new());
+                            .unwrap_or_else(|error| error.show_dialog_return_default());
                     }
                     SelectMode::Gray => {
-                        self.image_converter = self
-                            .image_converter
-                            .clone()
+                        self.image_converter = converter
                             .gray_scale(self.image_path.clone().unwrap())
-                            .unwrap_or(ImageConverter::new());
-
+                            .unwrap_or_else(|error| error.show_dialog_return_default());
                     }
                     SelectMode::HueRotate => {
-                        self.image_converter = self
-                            .image_converter
-                            .clone()
+                        self.image_converter = converter
                             .hue_rotate(self.image_path.clone().unwrap(), self.angle_value)
-                            .unwrap_or(ImageConverter::new());
+                            .unwrap_or_else(|error| error.show_dialog_return_default());
                     }
                     SelectMode::Blur => {
-                        self.image_converter = self
-                            .image_converter
-                            .clone()
+                        self.image_converter = converter
                             .blur(self.image_path.as_ref().unwrap(), 34.3)
-                            .unwrap_or(ImageConverter::new());
-  
+                            .unwrap_or_else(|error| error.show_dialog_return_default());
                     }
                     SelectMode::ToAscii => {
                         let path = self
@@ -154,7 +149,9 @@ impl Application for ImageState {
                             .clone()
                             .ascii_art(self.image_path.as_ref().unwrap(), 4);
 
-                        self.view_state.text_view = Some(TextViewerState::new(path.unwrap()));
+                        self.view_state.text_view = Some(TextViewerState::new(
+                            path.unwrap_or_else(|error| error.show_dialog_return_default()),
+                        ));
                         self.view_state.current_view = Views::Text;
                     }
                 }
@@ -162,10 +159,10 @@ impl Application for ImageState {
                 self.image_path = self.image_converter.clone().get_temp_result_path();
                 Command::none()
             }
-            Message::GrayConverted(result)=>{
+            Message::GrayConverted(result) => {
                 match result {
-                    Ok(image_converter)=>{self.image_converter=image_converter}
-                    Err(error)=>{self.error = Some(error)}
+                    Ok(image_converter) => self.image_converter = image_converter,
+                    Err(error) => self.error = Some(error),
                 }
 
                 Command::none()
@@ -174,7 +171,7 @@ impl Application for ImageState {
                 self.mode = mode;
                 Command::none()
             }
-            Message::SaveFormatSelected(save_format) =>{
+            Message::SaveFormatSelected(save_format) => {
                 self.save_format = save_format;
                 Command::none()
             }
@@ -191,7 +188,7 @@ impl Application for ImageState {
                         println!("{}", self.angle_value);
                     }
                     Err(e) => {
-                        println!("{}", e);
+                        //error_dialog_show(Some(e.to_owned()));
                     }
                 }
                 Command::none()
@@ -210,7 +207,11 @@ impl Application for ImageState {
 
         let select_mode_pick_list =
             pick_list(&SelectMode::ALL[..], Some(self.mode), Message::Selected);
-        let save_format_list = pick_list(&SaveFormat::ALL[..], Some(self.save_format), Message::SaveFormatSelected);
+        let save_format_list = pick_list(
+            &SaveFormat::ALL[..],
+            Some(self.save_format),
+            Message::SaveFormatSelected,
+        );
 
         let controlls = row![
             open_button,

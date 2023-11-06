@@ -1,5 +1,7 @@
 use std::{io, num::ParseIntError};
 
+use super::io::dialog::error_dialog_show;
+
 //use image::ImageError;
 
 
@@ -9,4 +11,20 @@ pub enum Error{
     IOFailed(io::ErrorKind),
     ParseError(ParseIntError),
     ImageError(String),
+}
+impl Into<String> for Error{
+    fn into(self) -> String {
+        match self {
+            Error::DialogClosed => "DialogClosed".to_string(),
+            Error::IOFailed(kind) => kind.to_string(),
+            Error::ParseError(_kind) => "数値を入力してください".to_string(),
+            Error::ImageError(kind) => kind,
+        }
+    }
+}
+impl Error{
+    pub fn show_dialog_return_default<T:Default>(&self) ->T{
+        error_dialog_show(self.clone());
+        T::default()
+    }
 }
