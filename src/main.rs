@@ -8,12 +8,16 @@ use coffee_image::{
     save_format::{self, SaveFormat},
 };
 
-use std::path::PathBuf;
+use std::{ path::PathBuf};
 
 use iced::{
     executor,
-    widget::{button, column, container, horizontal_space, pick_list, row, text_input, Image},
-    Application, Command, Element, Length, Settings, Theme,
+    keyboard::{self, KeyCode, Modifiers},
+    mouse::Button,
+    widget::{
+        button, column, container, horizontal_space, pick_list, row, text_input, Image, MouseArea,
+    },
+    Application, Command, Element, Event, Length, Settings, Theme,
 };
 use select_mode::SelectMode;
 use text_viewer_::TextViewerState;
@@ -63,6 +67,8 @@ pub enum Message {
     InputChanged(String),
     ViewChanged(Views),
     SaveFormatSelected(SaveFormat),
+    EventOccurred(Event),
+    Exit,
 }
 
 impl Application for ImageState {
@@ -140,7 +146,7 @@ impl Application for ImageState {
                     }
                     SelectMode::Blur => {
                         self.image_converter = converter
-                            .blur(self.image_path.as_ref().unwrap(), 34.3)
+                            .blur(self.image_path.as_ref().unwrap(), self.angle_value as f32)
                             .unwrap_or_else(|error| error.show_dialog_return_default());
                     }
                     SelectMode::ToAscii => {
@@ -187,7 +193,7 @@ impl Application for ImageState {
                         self.angle_value = self.input_value.clone().parse::<i32>().unwrap();
                         println!("{}", self.angle_value);
                     }
-                    Err(e) => {
+                    Err(error) => {
                         //error_dialog_show(Some(e.to_owned()));
                     }
                 }
@@ -197,9 +203,34 @@ impl Application for ImageState {
                 self.view_state.current_view = views;
                 Command::none()
             }
+            Message::EventOccurred(event)=>{
+                match event {
+                    Event::Window(window_event) =>{
+                        if let iced::window::Event::FileDropped(dropped_image_path) = window_event{
+                            self.image_path = Some(dropped_image_path)
+                        }
+                    }
+                    Event::Keyboard(key_event) => {
+                        if let iced::keyboard::Event::KeyPressed { key_code, modifiers } = key_event.clone(){
+                            if key_code == KeyCode::B && modifiers.command(){
+                                println!("keyevnet");
+                                return iced::window::close();
+                            }
+                        }
+                    }
+                    _=>{}
+                }
+                Command::none()
+            }
+            Message::Exit => {
+                iced::window::close()
+            }
         }
     }
 
+    fn subscription(&self) -> iced::Subscription<Message> {
+        iced::subscription::events().map(Message::EventOccurred)
+    }
     fn view(&self) -> iced::Element<'_, Message> {
         let open_button = button("Open").on_press(Message::Open);
         let convert_button = button("Convert").on_press(Message::Convert);
@@ -231,7 +262,7 @@ impl Application for ImageState {
                 .height(Length::Fill),
         );
 
-        if self.mode == SelectMode::HueRotate {
+        if self.mode == SelectMode::HueRotate || self.mode == SelectMode::Blur {
             let input_angle_text =
                 text_input(&self.input_value, "").on_input(Message::InputChanged);
             return container(column!(controlls, input_angle_text, image))

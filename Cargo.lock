@@ -384,6 +384,7 @@ name = "coffee_image"
 version = "0.1.0"
 dependencies = [
  "iced",
+ "iced_futures",
  "image",
  "rand",
  "rfd",
