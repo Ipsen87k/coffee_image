@@ -22,3 +22,15 @@ pub fn button_component_font<'a>(
     .into()
 }
 
+pub fn button_component<'a,Message:Clone+'a>(
+    label:&'a str,
+    on_press:Option<Message>,
+) -> Element<'a,Message>{
+    let button = button(label);
+
+    if let Some(on_press) = on_press {
+        button.on_press(on_press).into()
+    }else{
+        button.style(iced::theme::Button::Secondary).into()
+    }
+}

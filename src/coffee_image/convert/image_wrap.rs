@@ -100,6 +100,10 @@ impl ImageConverter {
         self.temp_converted_image_path
     }
 
+    pub fn is_result_temp_path(&self) -> bool {
+        self.temp_converted_image_path.is_some()
+    }
+
 
     fn save_temp_result_image(&mut self, temp_image: DynamicImage) -> Self {
         let file_name = format!("{}.jpg", generate_strings());

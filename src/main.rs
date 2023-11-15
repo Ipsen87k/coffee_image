@@ -8,7 +8,7 @@ use coffee_image::{
     save_format::{self, SaveFormat},
 };
 
-use std::{ path::PathBuf};
+use std::path::PathBuf;
 
 use iced::{
     executor,
@@ -186,7 +186,7 @@ impl Application for ImageState {
                     self.input_value = String::new();
                 }
 
-                let angle_value = &value.parse::<i32>();
+                let angle_value = &value.parse::<i32>().map_err(Error::ParseError);
                 match angle_value {
                     Ok(_angle_value) => {
                         self.input_value.push_str(&value);
@@ -194,7 +194,7 @@ impl Application for ImageState {
                         println!("{}", self.angle_value);
                     }
                     Err(error) => {
-                        //error_dialog_show(Some(e.to_owned()));
+                        error_dialog_show(error.to_owned());
                     }
                 }
                 Command::none()
@@ -203,28 +203,44 @@ impl Application for ImageState {
                 self.view_state.current_view = views;
                 Command::none()
             }
-            Message::EventOccurred(event)=>{
+            Message::EventOccurred(event) => {
                 match event {
-                    Event::Window(window_event) =>{
-                        if let iced::window::Event::FileDropped(dropped_image_path) = window_event{
+                    Event::Window(window_event) => {
+                        if let iced::window::Event::FileDropped(dropped_image_path) = window_event {
                             self.image_path = Some(dropped_image_path)
                         }
                     }
                     Event::Keyboard(key_event) => {
-                        if let iced::keyboard::Event::KeyPressed { key_code, modifiers } = key_event.clone(){
-                            if key_code == KeyCode::B && modifiers.command(){
+                        if let iced::keyboard::Event::KeyPressed {
+                            key_code,
+                            modifiers,
+                        } = key_event.clone()
+                        {
+                            if key_code == KeyCode::B && modifiers.command() {
                                 println!("keyevnet");
                                 return iced::window::close();
+                            } else if key_code == KeyCode::S && modifiers.command() {
+                                return Command::perform(
+                                    save(
+                                        None,
+                                        self.image_converter.clone(),
+                                        self.save_format.clone(),
+                                    ),
+                                    Message::ImageSaved,
+                                );
+                            } else if key_code == KeyCode::O && modifiers.command() {
+                                return Command::perform(
+                                    coffee_image_io::image_open(),
+                                    Message::ImageOpened,
+                                );
                             }
                         }
                     }
-                    _=>{}
+                    _ => {}
                 }
                 Command::none()
             }
-            Message::Exit => {
-                iced::window::close()
-            }
+            Message::Exit => iced::window::close(),
         }
     }
 
@@ -233,8 +249,16 @@ impl Application for ImageState {
     }
     fn view(&self) -> iced::Element<'_, Message> {
         let open_button = button("Open").on_press(Message::Open);
-        let convert_button = button("Convert").on_press(Message::Convert);
-        let save_button = button("Save").on_press(Message::Save);
+        let convert_button = components::button_component(
+            "Convert",
+            self.image_path.is_some().then_some(Message::Convert),
+        );
+        let save_button = components::button_component(
+            "Save",
+            self.image_converter
+                .is_result_temp_path()
+                .then_some(Message::Save),
+        );
 
         let select_mode_pick_list =
             pick_list(&SelectMode::ALL[..], Some(self.mode), Message::Selected);
