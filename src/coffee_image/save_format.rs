@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use image::ImageFormat;
-
+pub const SAVEFORMATS:[&str;4] = ["png","jpg","jpeg","gif"];
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum SaveFormat {
     #[default]

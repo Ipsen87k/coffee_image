@@ -120,7 +120,7 @@ impl Application for ImageState {
                 save(None, self.image_converter.clone(), self.save_format.clone()),
                 Message::ImageSaved,
             ),
-            Message::ImageSaved(Ok(path)) => Command::none(),
+            Message::ImageSaved(Ok(_path)) => Command::none(),
             Message::ImageSaved(Err(error)) => {
                 self.error = Some(error.clone());
                 error_dialog_show(error);

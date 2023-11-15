@@ -6,7 +6,7 @@ use std::{env, fs::File, path::PathBuf};
 
 use crate::coffee_image::convert::image_wrap::ImageConverter;
 use crate::coffee_image::error::Error;
-use crate::coffee_image::save_format::SaveFormat;
+use crate::coffee_image::save_format::{SaveFormat, self};
 
 const RESULT_FOLDER_NAME: &str = ".resultImages";
 const FILTER_NAME:&str ="image";
@@ -14,6 +14,7 @@ const FILTER_NAME:&str ="image";
 pub async fn image_open() -> Result<PathBuf, Error> {
     let handle = rfd::AsyncFileDialog::new()
         .set_title("画像パスを教えてください")
+        .add_filter(FILTER_NAME, &save_format::SAVEFORMATS)
         .pick_file()
         .await
         .ok_or(Error::DialogClosed)?;
