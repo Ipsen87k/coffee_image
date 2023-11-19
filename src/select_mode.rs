@@ -8,10 +8,11 @@ pub enum SelectMode {
     HueRotate,
     Blur,
     ToAscii,
+    Rotate,
 }
 
 impl SelectMode {
-    pub const ALL: [SelectMode;5] = [SelectMode::BitwiseNot, SelectMode::Gray,SelectMode::HueRotate,SelectMode::Blur,SelectMode::ToAscii];
+    pub const ALL: [SelectMode;6] = [SelectMode::BitwiseNot, SelectMode::Gray,SelectMode::HueRotate,SelectMode::Blur,SelectMode::ToAscii,SelectMode::Rotate];
 }
 
 impl Display for SelectMode {
@@ -25,6 +26,7 @@ impl Display for SelectMode {
                 SelectMode::HueRotate => "HueRotate",
                 SelectMode::Blur=> "Blur",
                 SelectMode::ToAscii => "ToAscii",
+                SelectMode::Rotate => "Rotate",
             }
         )
     }

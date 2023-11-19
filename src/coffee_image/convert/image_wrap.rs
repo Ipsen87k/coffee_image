@@ -1,5 +1,5 @@
-
 use image::{io::Reader as ImageReader, DynamicImage, GenericImageView};
+use image::{GenericImage, Rgba};
 use std::io::prelude::Write;
 
 use std::path::PathBuf;
@@ -11,7 +11,7 @@ use crate::coffee_image::string_art::ascii::get_byte_ascii;
 use crate::coffee_image::{error::Error, rng::generate_strings};
 
 //https://docs.rs/image/latest/image/
-#[derive(Debug, Clone,Default)]
+#[derive(Debug, Clone, Default)]
 pub struct ImageConverter {
     temp_converted_image_path: Option<PathBuf>,
 }
@@ -82,6 +82,39 @@ impl ImageConverter {
         }
         Ok(text_file)
     }
+    pub fn rotate(&mut self, path: &PathBuf, angle: f32) -> Result<Self, Error> {
+        let image = get_dynamic_image(path)?;
+        let (width, height) = image.dimensions();
+
+        let new_width = (angle.cos() * width as f32 + angle.sin() * height as f32).abs() as u32;
+        let new_height = (angle.sin() * width as f32 + angle.cos() * height as f32).abs() as u32;
+
+        let mut rotated_image = DynamicImage::new_rgba8(new_width, new_height);
+
+        for y in 0..new_height {
+            for x in 0..new_width {
+                let orgin_x = (angle.cos() * (x as f32 - new_width as f32 / 2.0)
+                    - angle.sin() * (y as f32 - new_height as f32 / 2.0)
+                    + width as f32 / 2.0)
+                    .round() as i32;
+                let origin_y = (angle.sin() * (x as f32 - new_width as f32 / 2.0)
+                    + angle.cos() * (y as f32 - new_height as f32 / 2.0)
+                    + height as f32 / 2.0)
+                    .round() as i32;
+
+                if orgin_x >= 0
+                    && orgin_x < width as i32
+                    && origin_y >= 0
+                    && origin_y < height as i32
+                {
+                    let pixel = image.get_pixel(orgin_x as u32, origin_y as u32);
+                    rotated_image.put_pixel(x, y, Rgba(pixel.0));
+                }
+            }
+        }
+
+        Ok(self.save_temp_result_image(rotated_image))
+    }
 }
 //https://www.youtube.com/watch?v=t4DmszQfD-Q
 //汎用的なメッソド
@@ -91,9 +124,11 @@ impl ImageConverter {
             temp_converted_image_path: None,
         }
     }
-    pub fn save_converted_image(&self, path: &PathBuf,save_format:SaveFormat) {
+    pub fn save_converted_image(&self, path: &PathBuf, save_format: SaveFormat) {
         let result_image = get_dynamic_image(self.temp_converted_image_path.as_ref().unwrap());
-        let _ = result_image.map(|result_image| result_image.save_with_format(path, save_format.convert_to_imageformat()));
+        let _ = result_image.map(|result_image| {
+            result_image.save_with_format(path, save_format.convert_to_imageformat())
+        });
     }
 
     pub fn get_temp_result_path(self) -> Option<PathBuf> {
@@ -103,7 +138,6 @@ impl ImageConverter {
     pub fn is_result_temp_path(&self) -> bool {
         self.temp_converted_image_path.is_some()
     }
-
 
     fn save_temp_result_image(&mut self, temp_image: DynamicImage) -> Self {
         let file_name = format!("{}.jpg", generate_strings());
@@ -122,30 +156,30 @@ impl ImageConverter {
         self.clone()
     }
 }
-    fn get_dynamic_image(path: &PathBuf) -> Result<DynamicImage, Error> {
-        let image = ImageReader::open(path)
-            .map_err(|error| error.kind())
-            .map_err(Error::IOFailed)?
-            .decode()
-            .map_err(|error| error.to_string())
-            .map_err(Error::ImageError)?;
-        Ok(image)
-    }
-pub fn async_blur(path:Option<PathBuf>,blur_value:f32) ->Result<PathBuf,Error>{
+fn get_dynamic_image(path: &PathBuf) -> Result<DynamicImage, Error> {
+    let image = ImageReader::open(path)
+        .map_err(|error| error.kind())
+        .map_err(Error::IOFailed)?
+        .decode()
+        .map_err(|error| error.to_string())
+        .map_err(Error::ImageError)?;
+    Ok(image)
+}
+pub fn async_blur(path: Option<PathBuf>, blur_value: f32) -> Result<PathBuf, Error> {
     let image = get_dynamic_image(path.as_ref().unwrap())?;
 
     let blured_image = image.blur(blur_value);
 
-            let file_name = format!("{}.jpg", generate_strings());
+    let file_name = format!("{}.jpg", generate_strings());
 
-        let temp_image_path = get_result_folder()
-            .map(|mut path| {
-                path.push(file_name);
-                path
-            })
-            .ok();
+    let temp_image_path = get_result_folder()
+        .map(|mut path| {
+            path.push(file_name);
+            path
+        })
+        .ok();
 
-        let _ = &blured_image.save(temp_image_path.as_ref().unwrap());
+    let _ = &blured_image.save(temp_image_path.as_ref().unwrap());
 
-        Ok(temp_image_path.unwrap())
+    Ok(temp_image_path.unwrap())
 }
