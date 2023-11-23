@@ -1,5 +1,5 @@
 use image::{io::Reader as ImageReader, DynamicImage, GenericImageView};
-use image::{GenericImage, Rgba};
+use image::{GenericImage, Rgba, RgbImage, RgbaImage};
 use std::io::prelude::Write;
 
 use std::path::PathBuf;
@@ -82,24 +82,33 @@ impl ImageConverter {
         }
         Ok(text_file)
     }
+    //https://qiita.com/yaju/items/680086b39bec5db93366
     pub fn rotate(&mut self, path: &PathBuf, angle: f32) -> Result<Self, Error> {
+        let radian = angle.to_radians();
+        let (sin,cos) = radian.sin_cos();
+
         let image = get_dynamic_image(path)?;
         let (width, height) = image.dimensions();
 
-        let new_width = (angle.cos() * width as f32 + angle.sin() * height as f32).abs() as u32;
-        let new_height = (angle.sin() * width as f32 + angle.cos() * height as f32).abs() as u32;
+        let new_width = (cos.abs() * width as f32 + sin.abs()* height as f32).abs() as u32;
+        let new_height = (sin.abs()* width as f32 + cos.abs()* height as f32).abs() as u32;
 
         let mut rotated_image = DynamicImage::new_rgba8(new_width, new_height);
 
+        let new_width_center = new_width as f32 / 2.0;
+        let new_height_center = new_height as f32 / 2.0;
+        let orgin_width_center = width as f32 / 2.0;
+        let orgin_height_center = height as f32 / 2.0;
+
         for y in 0..new_height {
             for x in 0..new_width {
-                let orgin_x = (angle.cos() * (x as f32 - new_width as f32 / 2.0)
-                    - angle.sin() * (y as f32 - new_height as f32 / 2.0)
-                    + width as f32 / 2.0)
+                let orgin_x = (cos* (x as f32 - new_width_center)
+                    - sin* (y as f32 - new_height_center)
+                    + orgin_width_center)
                     .round() as i32;
-                let origin_y = (angle.sin() * (x as f32 - new_width as f32 / 2.0)
-                    + angle.cos() * (y as f32 - new_height as f32 / 2.0)
-                    + height as f32 / 2.0)
+                let origin_y = (sin* (x as f32 - new_width_center)
+                    + cos* (y as f32 - new_height_center)
+                    + orgin_height_center)
                     .round() as i32;
 
                 if orgin_x >= 0
@@ -115,6 +124,7 @@ impl ImageConverter {
 
         Ok(self.save_temp_result_image(rotated_image))
     }
+
 }
 //https://www.youtube.com/watch?v=t4DmszQfD-Q
 //汎用的なメッソド

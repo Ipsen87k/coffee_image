@@ -383,6 +383,7 @@ dependencies = [
 name = "coffee_image"
 version = "0.1.0"
 dependencies = [
+ "glam",
  "iced",
  "iced_futures",
  "image",

@@ -164,13 +164,14 @@ impl Application for ImageState {
                         self.image_converter = converter
                             .rotate(
                                 self.image_path.as_ref().unwrap(),
-                                self.angle_value as f32 * std::f32::consts::PI / 180.0,
+                                self.angle_value as f32,
                             )
                             .unwrap_or_else(|error| error.show_dialog_return_default());
                     }
                 }
 
                 self.image_path = self.image_converter.clone().get_temp_result_path();
+                
                 Command::none()
             }
             Message::GrayConverted(result) => {
