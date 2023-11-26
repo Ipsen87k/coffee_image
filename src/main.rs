@@ -13,11 +13,8 @@ use std::path::PathBuf;
 use iced::{
     executor,
     keyboard::{self, KeyCode, Modifiers},
-    mouse::Button,
-    widget::{
-        button, column, container, horizontal_space, pick_list, row, text_input, Image, MouseArea,
-    },
-    Application, Command, Element, Event, Length, Settings, Theme,
+    widget::{button, column, container, horizontal_space, pick_list, row, text_input, Image},
+    Application, Command, Event, Length, Settings, Theme,
 };
 use select_mode::SelectMode;
 use text_viewer_::TextViewerState;
@@ -40,9 +37,7 @@ struct ImageState {
     error: Option<Error>,
     image_converter: ImageConverter,
     mode: SelectMode,
-    save_format: SaveFormat,
     input_value: String,
-    angle_value: i32,
     view_state: ViewState,
 }
 #[derive(Debug, Clone)]
@@ -87,9 +82,7 @@ impl Application for ImageState {
                 error: None,
                 image_converter: ImageConverter::new(),
                 mode: SelectMode::default(),
-                save_format: SaveFormat::default(),
-                input_value: "please input angle value".to_string(),
-                angle_value: 0,
+                input_value: "".to_string(),
                 view_state: ViewState {
                     current_view: Views::Image,
                     text_view: None,
@@ -117,7 +110,7 @@ impl Application for ImageState {
                 Command::none()
             }
             Message::Save => Command::perform(
-                save(None, self.image_converter.clone(), self.save_format.clone()),
+                save(None, self.image_converter.clone(), self.image_converter.save_format.clone()),
                 Message::ImageSaved,
             ),
             Message::ImageSaved(Ok(_path)) => Command::none(),
@@ -141,12 +134,18 @@ impl Application for ImageState {
                     }
                     SelectMode::HueRotate => {
                         self.image_converter = converter
-                            .hue_rotate(self.image_path.clone().unwrap(), self.angle_value)
+                            .hue_rotate(
+                                self.image_path.clone().unwrap(),
+                                self.convert_input_value_to_float() as i32,
+                            )
                             .unwrap_or_else(|error| error.show_dialog_return_default());
                     }
                     SelectMode::Blur => {
                         self.image_converter = converter
-                            .blur(self.image_path.as_ref().unwrap(), self.angle_value as f32)
+                            .blur(
+                                self.image_path.as_ref().unwrap(),
+                                self.convert_input_value_to_float(),
+                            )
                             .unwrap_or_else(|error| error.show_dialog_return_default());
                     }
                     SelectMode::ToAscii => {
@@ -164,14 +163,14 @@ impl Application for ImageState {
                         self.image_converter = converter
                             .rotate(
                                 self.image_path.as_ref().unwrap(),
-                                self.angle_value as f32,
+                                self.convert_input_value_to_float(),
                             )
                             .unwrap_or_else(|error| error.show_dialog_return_default());
                     }
                 }
 
                 self.image_path = self.image_converter.clone().get_temp_result_path();
-                
+
                 Command::none()
             }
             Message::GrayConverted(result) => {
@@ -187,25 +186,11 @@ impl Application for ImageState {
                 Command::none()
             }
             Message::SaveFormatSelected(save_format) => {
-                self.save_format = save_format;
+                self.image_converter.save_format = save_format;
                 Command::none()
             }
             Message::InputChanged(value) => {
-                if &self.input_value == "please input angle value" {
-                    self.input_value = String::new();
-                }
-
-                let angle_value = &value.parse::<i32>().map_err(Error::ParseError);
-                match angle_value {
-                    Ok(_angle_value) => {
-                        self.input_value.push_str(&value);
-                        self.angle_value = self.input_value.clone().parse::<i32>().unwrap();
-                        println!("{}", self.angle_value);
-                    }
-                    Err(error) => {
-                        error_dialog_show(error.to_owned());
-                    }
-                }
+                self.input_value = value;
                 Command::none()
             }
             Message::ViewChanged(views) => {
@@ -233,7 +218,7 @@ impl Application for ImageState {
                                     save(
                                         None,
                                         self.image_converter.clone(),
-                                        self.save_format.clone(),
+                                        self.image_converter.save_format.clone(),
                                     ),
                                     Message::ImageSaved,
                                 );
@@ -256,6 +241,8 @@ impl Application for ImageState {
     fn subscription(&self) -> iced::Subscription<Message> {
         iced::subscription::events().map(Message::EventOccurred)
     }
+
+    
     fn view(&self) -> iced::Element<'_, Message> {
         let open_button = button("Open").on_press(Message::Open);
         let convert_button = components::button_component(
@@ -273,7 +260,7 @@ impl Application for ImageState {
             pick_list(&SelectMode::ALL[..], Some(self.mode), Message::Selected);
         let save_format_list = pick_list(
             &SaveFormat::ALL[..],
-            Some(self.save_format),
+            Some(self.image_converter.save_format),
             Message::SaveFormatSelected,
         );
 
@@ -293,11 +280,18 @@ impl Application for ImageState {
             Image::new(image_path)
                 .width(Length::Fill)
                 .height(Length::Fill),
-        );
+        )
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .align_x(iced::alignment::Horizontal::Center)
+        .align_y(iced::alignment::Vertical::Center);
 
-        if self.mode == SelectMode::HueRotate || self.mode == SelectMode::Blur || self.mode == SelectMode::Rotate{
+        if self.mode == SelectMode::HueRotate
+            || self.mode == SelectMode::Blur
+            || self.mode == SelectMode::Rotate
+        {
             let input_angle_text =
-                text_input(&self.input_value, "").on_input(Message::InputChanged);
+                text_input("", &self.input_value).on_input(Message::InputChanged);
             return container(column!(controlls, input_angle_text, image))
                 .width(Length::Fill)
                 .height(Length::Fill)
@@ -324,6 +318,16 @@ impl Application for ImageState {
 impl Drop for ImageState {
     fn drop(&mut self) {
         remove_all_temp_file();
+    }
+}
+
+impl ImageState {
+    fn convert_input_value_to_float(&self) -> f32 {
+        let float_value = &self.input_value.parse::<f32>().map_err(Error::ParseError);
+        match float_value {
+            Ok(value) => value.to_owned(),
+            Err(error) => error.show_dialog_return_default::<f32>(),
+        }
     }
 }
 

@@ -1,30 +1,30 @@
 use std::fmt::Display;
 
 use image::ImageFormat;
-pub const SAVEFORMATS:[&str;4] = ["png","jpg","jpeg","gif"];
+pub const SAVEFORMATS:[&str;2] = ["png","jpg"];
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum SaveFormat {
     #[default]
     Png,
     Jpeg,
-    Gif,
-    Avif,
+    // Gif,
+    // Avif,
 }
 
 impl SaveFormat {
-    pub const ALL: [SaveFormat; 4] = [
+    pub const ALL: [SaveFormat; 2] = [
         SaveFormat::Png,
         SaveFormat::Jpeg,
-        SaveFormat::Gif,
-        SaveFormat::Avif,
+        // SaveFormat::Gif,
+        // SaveFormat::Avif,
     ];
 
     pub fn convert_to_imageformat(&self) -> ImageFormat {
         match self {
             SaveFormat::Png => ImageFormat::Png,
             SaveFormat::Jpeg => ImageFormat::Jpeg,
-            SaveFormat::Gif => ImageFormat::Gif,
-            SaveFormat::Avif => ImageFormat::Avif,
+            // SaveFormat::Gif => ImageFormat::Gif,
+            // SaveFormat::Avif => ImageFormat::Avif,
         }
     }
 }
@@ -37,8 +37,8 @@ impl Display for SaveFormat {
             match self {
                 SaveFormat::Png => "png",
                 SaveFormat::Jpeg => "jpeg",
-                SaveFormat::Gif => "gif",
-                SaveFormat::Avif => "avif",
+                // SaveFormat::Gif => "gif",
+                // SaveFormat::Avif => "avif",
             }
         )
     }

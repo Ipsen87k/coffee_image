@@ -1,4 +1,4 @@
-use std::{io, num::ParseIntError};
+use std::{io, num::{ParseFloatError}};
 
 use super::io::dialog::error_dialog_show;
 
@@ -9,7 +9,7 @@ use super::io::dialog::error_dialog_show;
 pub enum Error{
     DialogClosed,
     IOFailed(io::ErrorKind),
-    ParseError(ParseIntError),
+    ParseError(ParseFloatError),
     ImageError(String),
 }
 impl Into<String> for Error{

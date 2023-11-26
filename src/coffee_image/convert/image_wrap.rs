@@ -14,6 +14,7 @@ use crate::coffee_image::{error::Error, rng::generate_strings};
 #[derive(Debug, Clone, Default)]
 pub struct ImageConverter {
     temp_converted_image_path: Option<PathBuf>,
+    pub save_format:SaveFormat,
 }
 #[allow(dead_code)]
 type StdError = Box<dyn std::error::Error>;
@@ -132,6 +133,7 @@ impl ImageConverter {
     pub fn new() -> Self {
         Self {
             temp_converted_image_path: None,
+            save_format:SaveFormat::Png,
         }
     }
     pub fn save_converted_image(&self, path: &PathBuf, save_format: SaveFormat) {
@@ -150,16 +152,16 @@ impl ImageConverter {
     }
 
     fn save_temp_result_image(&mut self, temp_image: DynamicImage) -> Self {
-        let file_name = format!("{}.jpg", generate_strings());
+        let file_name = format!("{}", generate_strings());
 
         let temp_image_path = get_result_folder()
             .map(|mut path| {
-                path.push(file_name);
+                path.push(file_name+"."+self.save_format.to_string().as_ref());
                 path
             })
             .ok();
 
-        let _ = &temp_image.save(temp_image_path.as_ref().unwrap());
+        let _ = &temp_image.save_with_format(temp_image_path.as_ref().unwrap(), self.save_format.convert_to_imageformat());
 
         self.temp_converted_image_path = temp_image_path;
 
