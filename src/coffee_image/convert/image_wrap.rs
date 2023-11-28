@@ -21,43 +21,44 @@ type StdError = Box<dyn std::error::Error>;
 
 //Convert Methods
 impl ImageConverter {
-    pub fn gray_scale(mut self, path: PathBuf) -> Result<Self, Error> {
+    pub fn gray_scale(&mut self, path: PathBuf) -> Result<DynamicImage, Error> {
         let image = get_dynamic_image(&path)?;
 
         let gray_image = image.grayscale();
 
-        Ok(self.save_temp_result_image(gray_image))
+       // Ok(self.save_temp_result_image(gray_image))
+        Ok(gray_image)
     }
 
-    pub fn blur(&mut self, path: &PathBuf, blur_value: f32) -> Result<Self, Error> {
+    pub fn blur(&mut self, path: &PathBuf, blur_value: f32) -> Result<DynamicImage, Error> {
         let image = get_dynamic_image(path)?;
 
         let bulred_image = image.blur(blur_value);
 
-        Ok(self.save_temp_result_image(bulred_image))
+        Ok(bulred_image)
     }
 
-    pub async fn async_blur(&mut self, path: &PathBuf, blur_value: f32) -> Result<Self, Error> {
+    pub async fn async_blur(&mut self, path: &PathBuf, blur_value: f32) -> Result<(), Error> {
         let image = get_dynamic_image(path)?;
 
         let bulred_image = image.blur(blur_value);
 
-        Ok(self.save_temp_result_image(bulred_image))
+        Ok(())
     }
 
-    pub fn bitwise_not(&mut self, path: PathBuf) -> Result<Self, Error> {
+    pub fn bitwise_not(&mut self, path: PathBuf) -> Result<DynamicImage, Error> {
         let mut image = get_dynamic_image(&path)?;
 
         image.invert();
 
-        Ok(self.save_temp_result_image(image))
+        Ok(image)
     }
 
-    pub fn hue_rotate(&mut self, path: PathBuf, rotate_value: i32) -> Result<Self, Error> {
+    pub fn hue_rotate(&mut self, path: PathBuf, rotate_value: i32) -> Result<DynamicImage, Error> {
         let image = get_dynamic_image(&path)?;
         let rotate_image = image.huerotate(rotate_value);
 
-        Ok(self.save_temp_result_image(rotate_image))
+        Ok(rotate_image)
     }
 
     pub fn ascii_art(self, path: &PathBuf, scale: u32) -> Result<TextFile, Error> {
@@ -84,7 +85,7 @@ impl ImageConverter {
         Ok(text_file)
     }
     //https://qiita.com/yaju/items/680086b39bec5db93366
-    pub fn rotate(&mut self, path: &PathBuf, angle: f32) -> Result<Self, Error> {
+    pub fn rotate(&mut self, path: &PathBuf, angle: f32) -> Result<DynamicImage, Error> {
         let radian = angle.to_radians();
         let (sin,cos) = radian.sin_cos();
 
@@ -123,7 +124,7 @@ impl ImageConverter {
             }
         }
 
-        Ok(self.save_temp_result_image(rotated_image))
+        Ok(rotated_image)
     }
 
 }
@@ -143,15 +144,15 @@ impl ImageConverter {
         });
     }
 
-    pub fn get_temp_result_path(self) -> Option<PathBuf> {
-        self.temp_converted_image_path
+    pub fn get_temp_result_path(&self) -> Option<PathBuf> {
+        self.temp_converted_image_path.clone()
     }
 
     pub fn is_result_temp_path(&self) -> bool {
         self.temp_converted_image_path.is_some()
     }
 
-    fn save_temp_result_image(&mut self, temp_image: DynamicImage) -> Self {
+    pub fn save_temp_result_image(&mut self, temp_image: DynamicImage){
         let file_name = format!("{}", generate_strings());
 
         let temp_image_path = get_result_folder()
@@ -164,11 +165,9 @@ impl ImageConverter {
         let _ = &temp_image.save_with_format(temp_image_path.as_ref().unwrap(), self.save_format.convert_to_imageformat());
 
         self.temp_converted_image_path = temp_image_path;
-
-        self.clone()
     }
 }
-fn get_dynamic_image(path: &PathBuf) -> Result<DynamicImage, Error> {
+pub fn get_dynamic_image(path: &PathBuf) -> Result<DynamicImage, Error> {
     let image = ImageReader::open(path)
         .map_err(|error| error.kind())
         .map_err(Error::IOFailed)?

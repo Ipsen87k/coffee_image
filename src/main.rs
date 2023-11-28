@@ -1,5 +1,5 @@
 use coffee_image::{
-    convert::image_wrap::ImageConverter,
+    convert::image_wrap::{get_dynamic_image, ImageConverter},
     error::Error,
     io::{
         coffee_image_io::{self, mkdir_result_temp_folder, remove_all_temp_file, save},
@@ -110,7 +110,11 @@ impl Application for ImageState {
                 Command::none()
             }
             Message::Save => Command::perform(
-                save(None, self.image_converter.clone(), self.image_converter.save_format.clone()),
+                save(
+                    None,
+                    self.image_converter.clone(),
+                    self.image_converter.save_format.clone(),
+                ),
                 Message::ImageSaved,
             ),
             Message::ImageSaved(Ok(_path)) => Command::none(),
@@ -120,34 +124,23 @@ impl Application for ImageState {
                 Command::none()
             }
             Message::Convert => {
-                let mut converter = self.image_converter.clone();
-                match self.mode {
-                    SelectMode::BitwiseNot => {
-                        self.image_converter = converter
-                            .bitwise_not(self.image_path.clone().unwrap())
-                            .unwrap_or_else(|error| error.show_dialog_return_default());
-                    }
-                    SelectMode::Gray => {
-                        self.image_converter = converter
-                            .gray_scale(self.image_path.clone().unwrap())
-                            .unwrap_or_else(|error| error.show_dialog_return_default());
-                    }
-                    SelectMode::HueRotate => {
-                        self.image_converter = converter
-                            .hue_rotate(
-                                self.image_path.clone().unwrap(),
-                                self.convert_input_value_to_float() as i32,
-                            )
-                            .unwrap_or_else(|error| error.show_dialog_return_default());
-                    }
-                    SelectMode::Blur => {
-                        self.image_converter = converter
-                            .blur(
-                                self.image_path.as_ref().unwrap(),
-                                self.convert_input_value_to_float(),
-                            )
-                            .unwrap_or_else(|error| error.show_dialog_return_default());
-                    }
+                //let mut converter = self.image_converter.clone();
+
+                let converted_image = match self.mode {
+                    SelectMode::BitwiseNot => self
+                        .image_converter
+                        .bitwise_not(self.image_path.clone().unwrap()),
+                    SelectMode::Gray => self
+                        .image_converter
+                        .gray_scale(self.image_path.clone().unwrap()),
+                    SelectMode::HueRotate => self.image_converter.hue_rotate(
+                        self.image_path.clone().unwrap(),
+                        self.convert_input_value_to_float() as i32,
+                    ),
+                    SelectMode::Blur => self.image_converter.blur(
+                        self.image_path.as_ref().unwrap(),
+                        self.convert_input_value_to_float(),
+                    ),
                     SelectMode::ToAscii => {
                         let path = self
                             .image_converter
@@ -158,18 +151,17 @@ impl Application for ImageState {
                             path.unwrap_or_else(|error| error.show_dialog_return_default()),
                         ));
                         self.view_state.current_view = Views::Text;
+                        get_dynamic_image(self.image_path.as_ref().unwrap())
                     }
-                    SelectMode::Rotate => {
-                        self.image_converter = converter
-                            .rotate(
-                                self.image_path.as_ref().unwrap(),
-                                self.convert_input_value_to_float(),
-                            )
-                            .unwrap_or_else(|error| error.show_dialog_return_default());
-                    }
-                }
-
-                self.image_path = self.image_converter.clone().get_temp_result_path();
+                    SelectMode::Rotate => self.image_converter.rotate(
+                        self.image_path.as_ref().unwrap(),
+                        self.convert_input_value_to_float(),
+                    ),
+                };
+                let converted_image =
+                    converted_image.unwrap_or_else(|error| error.show_dialog_return_default());
+                self.image_converter.save_temp_result_image(converted_image);
+                self.image_path = self.image_converter.get_temp_result_path();
 
                 Command::none()
             }
@@ -242,7 +234,6 @@ impl Application for ImageState {
         iced::subscription::events().map(Message::EventOccurred)
     }
 
-    
     fn view(&self) -> iced::Element<'_, Message> {
         let open_button = button("Open").on_press(Message::Open);
         let convert_button = components::button_component(
