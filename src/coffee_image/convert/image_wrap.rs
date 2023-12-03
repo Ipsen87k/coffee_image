@@ -1,5 +1,5 @@
 use image::{io::Reader as ImageReader, DynamicImage, GenericImageView};
-use image::{GenericImage, Rgba, RgbImage, RgbaImage};
+use image::{GenericImage, Rgba};
 use std::io::prelude::Write;
 
 use std::path::PathBuf;
@@ -16,6 +16,7 @@ pub struct ImageConverter {
     temp_converted_image_path: Option<PathBuf>,
     pub save_format:SaveFormat,
 }
+
 #[allow(dead_code)]
 type StdError = Box<dyn std::error::Error>;
 
@@ -75,11 +76,11 @@ impl ImageConverter {
                     if pixel[3] == 0 {
                         intent = 0;
                     }
-                    output.write(get_byte_ascii(intent));
+                    let _=output.write(get_byte_ascii(intent));
                 }
             }
             if y % (scale * 2) == 0 {
-                output.write(b"\n");
+                let _=output.write(b"\n");
             }
         }
         Ok(text_file)
@@ -126,6 +127,31 @@ impl ImageConverter {
 
         Ok(rotated_image)
     }
+    pub fn add_images(&mut self,image_path1:PathBuf,image_path2:PathBuf) ->Result<DynamicImage,Error>{
+        let img1=get_dynamic_image(&image_path1)?;
+        let img2 =get_dynamic_image(&image_path2)?;
+        if !self.is_image_width_height_equal(&img1, &img2){
+            return Err(Error::WidthHeightNotEqualError);
+        }
+        let (width,height) = img1.dimensions(); 
+        let mut result_image = DynamicImage::new_rgba8(width, height);
+
+        for y in 0..height{
+            for x in 0..width{
+                let pixel1=img1.get_pixel(x, y);
+                let pixel2 = img2.get_pixel(x, y);
+
+                let new_pixel=[
+                    pixel1[0].saturating_add(pixel2[0]),
+                    pixel1[1].saturating_add(pixel2[1]),
+                    pixel1[2].saturating_add(pixel2[2]),
+                    pixel1[3].saturating_add(pixel2[3])
+                ];   
+                result_image.put_pixel(x, y, Rgba(new_pixel));
+            }
+        } 
+        Ok(result_image)
+    }
 
 }
 //https://www.youtube.com/watch?v=t4DmszQfD-Q
@@ -166,6 +192,13 @@ impl ImageConverter {
 
         self.temp_converted_image_path = temp_image_path;
     }
+
+    fn is_image_width_height_equal(&self,image1:&DynamicImage,image2:&DynamicImage) ->bool {
+        let (width1,height1)=image1.dimensions();
+        let (width2,height2)=image2.dimensions();
+
+        width1==width2 && height1 ==height2
+    }
 }
 pub fn get_dynamic_image(path: &PathBuf) -> Result<DynamicImage, Error> {
     let image = ImageReader::open(path)
@@ -194,3 +227,4 @@ pub fn async_blur(path: Option<PathBuf>, blur_value: f32) -> Result<PathBuf, Err
 
     Ok(temp_image_path.unwrap())
 }
+

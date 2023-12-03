@@ -11,6 +11,7 @@ pub enum Error{
     IOFailed(io::ErrorKind),
     ParseError(ParseFloatError),
     ImageError(String),
+    WidthHeightNotEqualError,
 }
 impl Into<String> for Error{
     fn into(self) -> String {
@@ -19,6 +20,7 @@ impl Into<String> for Error{
             Error::IOFailed(kind) => kind.to_string(),
             Error::ParseError(_kind) => "数値を入力してください".to_string(),
             Error::ImageError(kind) => kind,
+            Error::WidthHeightNotEqualError=>"widthとheightの値が等しくありません".to_string(),
         }
     }
 }

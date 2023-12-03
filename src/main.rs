@@ -124,7 +124,6 @@ impl Application for ImageState {
                 Command::none()
             }
             Message::Convert => {
-                //let mut converter = self.image_converter.clone();
 
                 let converted_image = match self.mode {
                     SelectMode::BitwiseNot => self
@@ -141,6 +140,9 @@ impl Application for ImageState {
                         self.image_path.as_ref().unwrap(),
                         self.convert_input_value_to_float(),
                     ),
+                    SelectMode::Add=>{
+                        self.image_converter.add_images(PathBuf::from("examplesImages/add1.jpg"), PathBuf::from("examplesImages/add2.jpg"))
+                    },
                     SelectMode::ToAscii => {
                         let path = self
                             .image_converter
