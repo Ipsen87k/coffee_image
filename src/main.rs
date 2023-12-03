@@ -2,7 +2,7 @@ use coffee_image::{
     convert::image_wrap::{get_dynamic_image, ImageConverter},
     error::Error,
     io::{
-        coffee_image_io::{self, mkdir_result_temp_folder, remove_all_temp_file, save},
+        coffee_image_io::{self, mkdir_result_temp_folder, remove_all_temp_file, save, image_open},
         dialog::error_dialog_show,
     },
     save_format::{self, SaveFormat},
@@ -34,6 +34,7 @@ fn main() -> iced::Result {
 #[derive(Debug, Clone)]
 struct ImageState {
     image_path: Option<PathBuf>,
+    iamge_path2:Option<PathBuf>,
     error: Option<Error>,
     image_converter: ImageConverter,
     mode: SelectMode,
@@ -79,6 +80,7 @@ impl Application for ImageState {
         (
             Self {
                 image_path: None,
+                iamge_path2:None,
                 error: None,
                 image_converter: ImageConverter::new(),
                 mode: SelectMode::default(),
@@ -100,8 +102,12 @@ impl Application for ImageState {
         match message {
             Message::Open => Command::perform(coffee_image_io::image_open(), Message::ImageOpened),
             Message::ImageOpened(Ok(path)) => {
-                self.image_path = Some(path);
-
+                if self.mode==SelectMode::Add{
+                    self.iamge_path2=Some(path)
+                }else{
+                    self.image_path = Some(path);
+                }
+                
                 Command::none()
             }
             Message::ImageOpened(Err(error)) => {
@@ -141,7 +147,7 @@ impl Application for ImageState {
                         self.convert_input_value_to_float(),
                     ),
                     SelectMode::Add=>{
-                        self.image_converter.add_images(PathBuf::from("examplesImages/add1.jpg"), PathBuf::from("examplesImages/add2.jpg"))
+                        self.image_converter.add_images(self.image_path.as_ref().unwrap(), self.iamge_path2.as_ref().unwrap())
                     },
                     SelectMode::ToAscii => {
                         let path = self
@@ -177,7 +183,12 @@ impl Application for ImageState {
             }
             Message::Selected(mode) => {
                 self.mode = mode;
-                Command::none()
+                if self.mode==SelectMode::Add{
+                    Command::perform(image_open(), Message::ImageOpened)
+                }else{
+                    Command::none()
+                }
+                
             }
             Message::SaveFormatSelected(save_format) => {
                 self.image_converter.save_format = save_format;
@@ -256,8 +267,20 @@ impl Application for ImageState {
             Some(self.image_converter.save_format),
             Message::SaveFormatSelected,
         );
-
-        let controlls = row![
+        //TODO リファクタリング
+        let controlls =if self.mode==SelectMode::Add{
+            let reselect_button=components::button_component("Reselect", Some(Message::Open));
+            row![
+            open_button,
+            save_button,
+            convert_button,
+            reselect_button,
+            horizontal_space(Length::Fill),
+            save_format_list,
+            select_mode_pick_list
+        ]
+        }else{
+            row![
             open_button,
             save_button,
             convert_button,
@@ -265,8 +288,9 @@ impl Application for ImageState {
             save_format_list,
             select_mode_pick_list
         ]
+        }
         .padding(10);
-
+        
         let image_path = self.image_path.clone().unwrap_or(PathBuf::from(""));
 
         let image = container(

@@ -127,7 +127,7 @@ impl ImageConverter {
 
         Ok(rotated_image)
     }
-    pub fn add_images(&mut self,image_path1:PathBuf,image_path2:PathBuf) ->Result<DynamicImage,Error>{
+    pub fn add_images(&mut self,image_path1:&PathBuf,image_path2:&PathBuf) ->Result<DynamicImage,Error>{
         let img1=get_dynamic_image(&image_path1)?;
         let img2 =get_dynamic_image(&image_path2)?;
         if !self.is_image_width_height_equal(&img1, &img2){
