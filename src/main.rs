@@ -2,7 +2,7 @@ use coffee_image::{
     convert::image_wrap::{get_dynamic_image, ImageConverter},
     error::Error,
     io::{
-        coffee_image_io::{self, mkdir_result_temp_folder, remove_all_temp_file, save, image_open},
+        coffee_image_io::{self, image_open, mkdir_result_temp_folder, remove_all_temp_file, save},
         dialog::error_dialog_show,
     },
     save_format::{self, SaveFormat},
@@ -33,8 +33,7 @@ fn main() -> iced::Result {
 
 #[derive(Debug, Clone)]
 struct ImageState {
-    image_path: Option<PathBuf>,
-    iamge_path2:Option<PathBuf>,
+    image_paths: (Option<PathBuf>, Option<PathBuf>),
     error: Option<Error>,
     image_converter: ImageConverter,
     mode: SelectMode,
@@ -79,8 +78,7 @@ impl Application for ImageState {
     fn new(_flags: Self::Flags) -> (Self, iced::Command<Message>) {
         (
             Self {
-                image_path: None,
-                iamge_path2:None,
+                image_paths: (None, None),
                 error: None,
                 image_converter: ImageConverter::new(),
                 mode: SelectMode::default(),
@@ -102,12 +100,12 @@ impl Application for ImageState {
         match message {
             Message::Open => Command::perform(coffee_image_io::image_open(), Message::ImageOpened),
             Message::ImageOpened(Ok(path)) => {
-                if self.mode==SelectMode::Add{
-                    self.iamge_path2=Some(path)
-                }else{
-                    self.image_path = Some(path);
+                if self.mode == SelectMode::Add {
+                    self.image_paths.1 = Some(path)
+                } else {
+                    self.image_paths.0 = Some(path);
                 }
-                
+
                 Command::none()
             }
             Message::ImageOpened(Err(error)) => {
@@ -130,46 +128,37 @@ impl Application for ImageState {
                 Command::none()
             }
             Message::Convert => {
-
+                self.image_converter
+                    .set_image_path(self.image_paths.0.clone().unwrap());
                 let converted_image = match self.mode {
-                    SelectMode::BitwiseNot => self
+                    SelectMode::BitwiseNot => self.image_converter.bitwise_not(),
+                    SelectMode::Gray => self.image_converter.gray_scale(),
+                    SelectMode::HueRotate => self
                         .image_converter
-                        .bitwise_not(self.image_path.clone().unwrap()),
-                    SelectMode::Gray => self
+                        .hue_rotate(self.convert_input_value_to_float() as i32),
+                    SelectMode::Blur => self
                         .image_converter
-                        .gray_scale(self.image_path.clone().unwrap()),
-                    SelectMode::HueRotate => self.image_converter.hue_rotate(
-                        self.image_path.clone().unwrap(),
-                        self.convert_input_value_to_float() as i32,
-                    ),
-                    SelectMode::Blur => self.image_converter.blur(
-                        self.image_path.as_ref().unwrap(),
-                        self.convert_input_value_to_float(),
-                    ),
-                    SelectMode::Add=>{
-                        self.image_converter.add_images(self.image_path.as_ref().unwrap(), self.iamge_path2.as_ref().unwrap())
-                    },
+                        .blur(self.convert_input_value_to_float()),
+                    SelectMode::Add => self
+                        .image_converter
+                        .add_images(self.image_paths.1.as_ref().unwrap()),
                     SelectMode::ToAscii => {
-                        let path = self
-                            .image_converter
-                            .clone()
-                            .ascii_art(self.image_path.as_ref().unwrap(), 4);
+                        let path = self.image_converter.clone().ascii_art(4);
 
                         self.view_state.text_view = Some(TextViewerState::new(
                             path.unwrap_or_else(|error| error.show_dialog_return_default()),
                         ));
                         self.view_state.current_view = Views::Text;
-                        get_dynamic_image(self.image_path.as_ref().unwrap())
+                        get_dynamic_image(self.image_paths.0.as_ref().unwrap())
                     }
-                    SelectMode::Rotate => self.image_converter.rotate(
-                        self.image_path.as_ref().unwrap(),
-                        self.convert_input_value_to_float(),
-                    ),
+                    SelectMode::Rotate => self
+                        .image_converter
+                        .rotate(self.convert_input_value_to_float()),
                 };
                 let converted_image =
                     converted_image.unwrap_or_else(|error| error.show_dialog_return_default());
                 self.image_converter.save_temp_result_image(converted_image);
-                self.image_path = self.image_converter.get_temp_result_path();
+                self.image_paths.0 = self.image_converter.get_temp_result_path();
 
                 Command::none()
             }
@@ -183,12 +172,11 @@ impl Application for ImageState {
             }
             Message::Selected(mode) => {
                 self.mode = mode;
-                if self.mode==SelectMode::Add{
+                if self.mode == SelectMode::Add {
                     Command::perform(image_open(), Message::ImageOpened)
-                }else{
+                } else {
                     Command::none()
                 }
-                
             }
             Message::SaveFormatSelected(save_format) => {
                 self.image_converter.save_format = save_format;
@@ -206,7 +194,7 @@ impl Application for ImageState {
                 match event {
                     Event::Window(window_event) => {
                         if let iced::window::Event::FileDropped(dropped_image_path) = window_event {
-                            self.image_path = Some(dropped_image_path)
+                            self.image_paths.0 = Some(dropped_image_path)
                         }
                     }
                     Event::Keyboard(key_event) => {
@@ -251,7 +239,7 @@ impl Application for ImageState {
         let open_button = button("Open").on_press(Message::Open);
         let convert_button = components::button_component(
             "Convert",
-            self.image_path.is_some().then_some(Message::Convert),
+            self.image_paths.0.is_some().then_some(Message::Convert),
         );
         let save_button = components::button_component(
             "Save",
@@ -268,30 +256,30 @@ impl Application for ImageState {
             Message::SaveFormatSelected,
         );
         //TODO リファクタリング
-        let controlls =if self.mode==SelectMode::Add{
-            let reselect_button=components::button_component("Reselect", Some(Message::Open));
+        let controlls = if self.mode == SelectMode::Add {
+            let reselect_button = components::button_component("Reselect", Some(Message::Open));
             row![
-            open_button,
-            save_button,
-            convert_button,
-            reselect_button,
-            horizontal_space(Length::Fill),
-            save_format_list,
-            select_mode_pick_list
-        ]
-        }else{
+                open_button,
+                save_button,
+                convert_button,
+                reselect_button,
+                horizontal_space(Length::Fill),
+                save_format_list,
+                select_mode_pick_list
+            ]
+        } else {
             row![
-            open_button,
-            save_button,
-            convert_button,
-            horizontal_space(Length::Fill),
-            save_format_list,
-            select_mode_pick_list
-        ]
+                open_button,
+                save_button,
+                convert_button,
+                horizontal_space(Length::Fill),
+                save_format_list,
+                select_mode_pick_list
+            ]
         }
         .padding(10);
-        
-        let image_path = self.image_path.clone().unwrap_or(PathBuf::from(""));
+
+        let image_path = self.image_paths.0.clone().unwrap_or(PathBuf::from(""));
 
         let image = container(
             Image::new(image_path)

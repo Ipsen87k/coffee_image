@@ -34,3 +34,4 @@ pub fn button_component<'a,Message:Clone+'a>(
         button.style(iced::theme::Button::Secondary).into()
     }
 }
+
