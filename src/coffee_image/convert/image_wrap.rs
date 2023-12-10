@@ -160,7 +160,7 @@ impl ImageConverter {
         let threshold_value=127;
 
         let (width,height)=gray_image.dimensions();
-        let mut dst_image= self.new_image_create(&gray_image);
+        let (mut dst_image,_,_) = self.new_image_create(&gray_image);
 
         for y in 0..height{
             for x in 0..width{
@@ -176,6 +176,30 @@ impl ImageConverter {
         Ok(dst_image)
     }
 
+    pub fn bitwise_and(&mut self,src:&DynamicImage,mask:&DynamicImage) ->DynamicImage {
+        let (mut result_image,width,height) = self.new_image_create(mask);
+
+        for y in 0..height{
+            for x in 0..width{
+                let src_pixel = src.get_pixel(x, y);
+                let mask_pixel = mask.get_pixel(x, y);
+
+                let result_pixel = Rgba([
+                    src_pixel[0] & mask_pixel[0],
+                    src_pixel[1] & mask_pixel[1],
+                    src_pixel[2] & mask_pixel[2],
+                    src_pixel[3] & mask_pixel[3],
+                ]);
+
+                //println!("{} & {} = {}",src_pixel[0],mask_pixel[0],src_pixel[0] & mask_pixel[0]);
+
+                result_image.put_pixel(x, y, result_pixel);
+            }
+        }
+
+        result_image
+    }
+
     fn create_mask(&mut self) ->Result<DynamicImage,Error>{
         let mut thresholded_image = self.threshold()?;
         thresholded_image.invert();
@@ -183,9 +207,11 @@ impl ImageConverter {
         Ok(self.mask.clone().unwrap())
     }
 
-    fn new_image_create(&mut self,image:&DynamicImage) ->DynamicImage{
+    
+
+    fn new_image_create(&mut self,image:&DynamicImage) ->(DynamicImage,u32,u32){
         let (width,height) = image.dimensions();
-        DynamicImage::new_rgb8(width, height)
+        (DynamicImage::new_rgb8(width, height),width,height)
     }
 }
 //https://www.youtube.com/watch?v=t4DmszQfD-Q
@@ -279,6 +305,18 @@ mod test{
         ic.set_image_path(PathBuf::from("examplesImages/people.jpg"));
         ic
     }
+
+    fn create_black_image(src:&DynamicImage) -> DynamicImage{
+        let (height,width) = src.dimensions();
+        let mut result_img = DynamicImage::new_rgb8(width, height);
+        for y in 0..height{
+            for x in 0..width{
+                let black_rgba= Rgba([0,0,0,255]);
+                result_img.put_pixel(x, y, black_rgba);
+            }
+        }
+        result_img
+    }
     #[test]
     fn threshold_test(){
         let mut ic = ImageConverter::new();
@@ -293,4 +331,33 @@ mod test{
         let mask = ic.create_mask().unwrap();
         let _=mask.save("cm.jpg");
     }
+
+    #[test]
+    fn bitwise_and_test(){
+        let mut ic = create_imageconverter_helper();
+        //let mask = ic.create_mask().unwrap();
+        let src = get_dynamic_image(&ic.orgin_image_path).unwrap();
+        let mask = get_dynamic_image(&PathBuf::from("examplesImages/people_mask.jpg")).unwrap();
+
+        let bitwise_and_image = ic.bitwise_and(&src, &mask);
+        let _ =bitwise_and_image.save("bitwise_and.jpg");
+    }
+
+    #[test]
+    fn t(){
+        let mut ic = create_imageconverter_helper();
+        //let mask = ic.create_mask().unwrap();
+        let src = get_dynamic_image(&ic.orgin_image_path).unwrap();
+        let black_img = create_black_image(&src);
+
+        let (w,h) = black_img.dimensions();
+
+        for y in 0..h{
+            for x in 0..w{
+                let pixel = black_img.get_pixel(x, y);
+                println!("{},{},{},{}",pixel[0],pixel[1],pixel[2],pixel[3]);
+            }
+        }
+    }
+
 }
