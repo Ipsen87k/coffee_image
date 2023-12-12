@@ -134,8 +134,28 @@ impl ImageConverter {
         if !self.is_image_width_height_equal(&img1, &img2) {
             return Err(Error::WidthHeightNotEqualError);
         }
-        let (width, height) = img1.dimensions();
-        let mut result_image = DynamicImage::new_rgba8(width, height);
+        Ok(self.add_image(&img1, &img2))
+        // let (width, height) = img1.dimensions();
+        // let mut result_image = DynamicImage::new_rgba8(width, height);
+
+        // for y in 0..height {
+        //     for x in 0..width {
+        //         let pixel1 = img1.get_pixel(x, y);
+        //         let pixel2 = img2.get_pixel(x, y);
+
+        //         let new_pixel = [
+        //             pixel1[0].saturating_add(pixel2[0]),
+        //             pixel1[1].saturating_add(pixel2[1]),
+        //             pixel1[2].saturating_add(pixel2[2]),
+        //             pixel1[3].saturating_add(pixel2[3]),
+        //         ];
+        //         result_image.put_pixel(x, y, Rgba(new_pixel));
+        //     }
+        // }
+        // Ok(result_image)
+    }
+    fn add_image(&mut self,img1:&DynamicImage,img2:&DynamicImage) ->DynamicImage{
+        let (mut result_image,width,height) = self.new_image_create(&img1);
 
         for y in 0..height {
             for x in 0..width {
@@ -151,13 +171,13 @@ impl ImageConverter {
                 result_image.put_pixel(x, y, Rgba(new_pixel));
             }
         }
-        Ok(result_image)
+        result_image
     }
     //https://whitewell.sakura.ne.jp/OpenCV/py_tutorials/py_core/py_image_arithmetics/py_image_arithmetics.html
     //TODO 画像の合成
     fn threshold(&mut self) ->Result<DynamicImage,Error>{
         let gray_image=self.gray_scale()?;
-        let threshold_value=127;
+        let threshold_value=5;
 
         let (width,height)=gray_image.dimensions();
         let (mut dst_image,_,_) = self.new_image_create(&gray_image);
@@ -191,8 +211,6 @@ impl ImageConverter {
                     src_pixel[3] & mask_pixel[3],
                 ]);
 
-                //println!("{} & {} = {}",src_pixel[0],mask_pixel[0],src_pixel[0] & mask_pixel[0]);
-
                 result_image.put_pixel(x, y, result_pixel);
             }
         }
@@ -200,14 +218,41 @@ impl ImageConverter {
         result_image
     }
 
-    fn create_mask(&mut self) ->Result<DynamicImage,Error>{
-        let mut thresholded_image = self.threshold()?;
-        thresholded_image.invert();
+    fn create_mask_and_mask_inv(&mut self) ->Result<(DynamicImage,DynamicImage),Error>{
+        let thresholded_image = self.threshold()?;
+        let mut mask_inv = thresholded_image.clone();
+        mask_inv.invert();
         self.mask=Some(thresholded_image);
-        Ok(self.mask.clone().unwrap())
+        Ok((self.mask.clone().unwrap(),mask_inv))
     }
 
-    
+    fn resize_from_img(&mut self,logo_image:&DynamicImage) ->Result<DynamicImage,Error>{
+        let orginal_img = get_dynamic_image(&self.orgin_image_path)?;
+        let (mut resized_img,width,height) = self.new_image_create(&logo_image);
+
+        for y in 0..height{
+            for x in 0..width{
+                let pixel = orginal_img.get_pixel(x, y);
+                resized_img.put_pixel(x, y, pixel);
+            }
+        }
+
+        Ok(resized_img)
+    }
+
+    //TODO名前変更
+    fn transparete_add_img(&mut self,trans_img:&DynamicImage) ->Result<DynamicImage,Error>{
+        let mut orginal_img = get_dynamic_image(&self.orgin_image_path)?;
+        let (width,height) = trans_img.dimensions();
+
+        for y in 0..height{
+            for x in 0..width{
+                let pixel = trans_img.get_pixel(x, y);
+                orginal_img.put_pixel(x, y, pixel);
+            }
+        }
+        Ok(orginal_img)
+    }
 
     fn new_image_create(&mut self,image:&DynamicImage) ->(DynamicImage,u32,u32){
         let (width,height) = image.dimensions();
@@ -278,24 +323,6 @@ pub fn get_dynamic_image(path: &PathBuf) -> Result<DynamicImage, Error> {
         .map_err(Error::ImageError)?;
     Ok(image)
 }
-pub fn async_blur(path: Option<PathBuf>, blur_value: f32) -> Result<PathBuf, Error> {
-    let image = get_dynamic_image(path.as_ref().unwrap())?;
-
-    let blured_image = image.blur(blur_value);
-
-    let file_name = format!("{}.jpg", generate_strings());
-
-    let temp_image_path = get_result_folder()
-        .map(|mut path| {
-            path.push(file_name);
-            path
-        })
-        .ok();
-
-    let _ = &blured_image.save(temp_image_path.as_ref().unwrap());
-
-    Ok(temp_image_path.unwrap())
-}
 
 #[cfg(test)]
 mod test{
@@ -328,7 +355,7 @@ mod test{
     #[test]
     fn create_mask_test(){
         let mut ic = create_imageconverter_helper();
-        let mask = ic.create_mask().unwrap();
+        let (mask,_) = ic.create_mask_and_mask_inv().unwrap();
         let _=mask.save("cm.jpg");
     }
 
@@ -344,20 +371,46 @@ mod test{
     }
 
     #[test]
-    fn t(){
+    fn resize_from_img_test(){
         let mut ic = create_imageconverter_helper();
-        //let mask = ic.create_mask().unwrap();
-        let src = get_dynamic_image(&ic.orgin_image_path).unwrap();
-        let black_img = create_black_image(&src);
 
-        let (w,h) = black_img.dimensions();
+        let logo_img = get_dynamic_image(&PathBuf::from("examplesImages/images.jpg")).unwrap();
+        let resized_img = ic.resize_from_img(&logo_img).unwrap();
 
-        for y in 0..h{
-            for x in 0..w{
-                let pixel = black_img.get_pixel(x, y);
-                println!("{},{},{},{}",pixel[0],pixel[1],pixel[2],pixel[3]);
-            }
-        }
+        let _=resized_img.save("resized.jpg");
     }
+
+    #[test]
+    fn image_add_transprate(){
+        let logo_img_path = "examplesImages/unitylogo.png";//"examplesImages/python.jpg";
+        let logo_img = get_dynamic_image(&PathBuf::from(logo_img_path)).unwrap();
+
+        let mut ic = ImageConverter::new();
+        ic.set_image_path(PathBuf::from("examplesImages/add2.jpg"));
+
+        let roi = ic.resize_from_img(&logo_img).unwrap();
+
+        let mut ic_logo = ImageConverter::new();
+        ic_logo.set_image_path(PathBuf::from(logo_img_path));
+
+        let (mask,mask_inv) = ic_logo.create_mask_and_mask_inv().unwrap();
+        let _=mask.save("mask.png");
+        let _=mask_inv.save("mask_inv.png");
+
+        let img1_bg=ic.bitwise_and(&roi, &mask_inv);
+        let _=img1_bg.save("img1_bg.png");
+        let img2_fg = ic.bitwise_and(&img_open(logo_img_path), &mask);
+        let _ = img2_fg.save("img2_fg.png");
+        let add_img = ic.add_image(&img1_bg, &img2_fg);
+        let _=add_img.save("addtrans.png");
+        let dst =ic.transparete_add_img(&add_img).unwrap();
+        let _=dst.save("transPreateAdd.png");
+    }
+
+    fn img_open(path :&str) ->DynamicImage{
+        get_dynamic_image(&PathBuf::from(path)).unwrap()
+    }
+
+    
 
 }
