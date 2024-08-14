@@ -52,7 +52,6 @@ pub fn get_result_folder() -> Result<PathBuf, Error> {
 }
 
 pub fn remove_all_temp_file() {
-    let mut error_output = File::create("error.log").unwrap();
     let temp_dir = get_result_folder().unwrap();
     let read_dir = read_dir(temp_dir);
     let dir = read_dir.unwrap();
@@ -60,7 +59,6 @@ pub fn remove_all_temp_file() {
     for dir_entry in dir.into_iter() {
         let file_path = dir_entry.unwrap().path();
         let _ = remove_file(file_path).map_err(|error| {
-            let _ = error_output.write(error.to_string().as_bytes());
         });
     }
 }

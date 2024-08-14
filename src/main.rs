@@ -1,3 +1,4 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 use coffee_image::{
     convert::image_wrap::{get_dynamic_image, ImageConverter},
     error::Error,
