@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 glam = "0.24.2"
-iced = {version = "0.10.0", features = ["debug","image"]}
+iced = {version = "0.10.0", features = ["debug","image","canvas"]}
 iced_futures = "0.7.0"
 
 

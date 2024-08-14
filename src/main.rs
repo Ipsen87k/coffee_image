@@ -7,14 +7,15 @@ use coffee_image::{
     },
     save_format::{self, SaveFormat},
 };
+use iced_futures::core::Widget;
 
 use std::path::PathBuf;
 
 use iced::{
     executor,
     keyboard::{self, KeyCode, Modifiers},
-    widget::{button, column, container, horizontal_space, pick_list, row, text_input, Image},
-    Application, Command, Event, Length, Settings, Theme,
+    widget::{button, column, container, horizontal_space, pick_list, row, text_input, Image, canvas},
+    Application, Command, Event, Length, Settings, Theme, mouse,
 };
 use select_mode::SelectMode;
 use text_viewer_::TextViewerState;
@@ -39,11 +40,26 @@ struct ImageState {
     mode: SelectMode,
     input_value: String,
     view_state: ViewState,
+    cursor_position: Vec<iced::Point>,
+    rectangle:Option< iced::Rectangle>,
+    mouse_state:MouseState,
 }
 #[derive(Debug, Clone)]
 struct ViewState {
     current_view: Views,
     text_view: Option<TextViewerState>,
+}
+
+#[derive(Debug,Clone)]
+struct MouseState{
+    is_pressed:bool,
+    is_released:bool,
+}
+
+impl Default for MouseState{
+    fn default() -> Self {
+        Self { is_pressed: false, is_released:false }
+    }
 }
 #[derive(Debug, Clone)]
 pub enum Views {
@@ -87,6 +103,9 @@ impl Application for ImageState {
                     current_view: Views::Image,
                     text_view: None,
                 },
+                cursor_position: vec![iced::Point::default();2],
+                rectangle: None,
+                mouse_state:MouseState::default(),
             },
             Command::none(),
         )
@@ -204,7 +223,6 @@ impl Application for ImageState {
                         } = key_event.clone()
                         {
                             if key_code == KeyCode::B && modifiers.command() {
-                                println!("keyevnet");
                                 return iced::window::close();
                             } else if key_code == KeyCode::S && modifiers.command() {
                                 return Command::perform(
@@ -222,6 +240,44 @@ impl Application for ImageState {
                                 );
                             }
                         }
+                    }
+                    Event::Mouse(mouse_event)=>{
+                        let mut posi1 = iced::Point::default();
+                        
+                        if let mouse::Event::CursorMoved { position }=mouse_event{
+                            //println!("{},{}",position.x,position.y);
+                            posi1=position;
+                        }
+                        if let mouse::Event::ButtonPressed(button)=mouse_event{
+                            if mouse::Button::Left==button{
+                                //println!("left");
+                                self.mouse_state.is_pressed=true;
+                                self.cursor_position[0]=posi1;
+                                //println!("{},{}",self.cursor_position[0].x,self.cursor_position[0].y);
+                            }
+                        }
+                        if let mouse::Event::CursorMoved { position } =mouse_event{
+                            //println!("{},{}",position.x,position.y);
+                            posi1=position;
+                        }
+                        if let mouse::Event::ButtonReleased(button)=mouse_event{
+                            if mouse::Button::Left==button{
+                                self.mouse_state.is_released=true;
+                                self.cursor_position[1]=posi1;
+                                
+                                
+                                //println!("{},{}",self.cursor_position[1].x,self.cursor_position[1].y);
+                            }
+                        }
+                        if self.mouse_state.is_pressed && self.mouse_state.is_released{
+                            let position1=self.cursor_position[0];
+                            let position2 = self.cursor_position[1];
+                            let size = iced::Size::new((position2.x-position1.x).abs() , (position1.y-position2.y).abs());
+                            self.rectangle = Some(iced::Rectangle::new(position2, size));
+                            self.mouse_state.is_pressed=false;
+                            self.mouse_state.is_released=false;
+                        }
+                        
                     }
                     _ => {}
                 }
@@ -308,7 +364,10 @@ impl Application for ImageState {
             .height(Length::Fill)
             .padding(10)
             .into();
-
+        if self.rectangle.is_some(){
+            let rect = self.rectangle.unwrap();
+            
+        }
         match self.view_state.current_view {
             Views::Image => image_view,
             Views::Text => self.view_state.text_view.as_ref().unwrap().view(),
