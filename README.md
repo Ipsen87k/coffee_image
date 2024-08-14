@@ -10,7 +10,7 @@ releaseからDownloadお願いいたします
 ```bash
 git clone https://github.com/Ipsen87k/coffee_image
 
-cd /filersmanager
+cd /coffee_image
 
 cargo r
 ```
