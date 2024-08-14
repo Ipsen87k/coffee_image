@@ -8,7 +8,7 @@ releaseからDownloadお願いいたします
 # Build
 ###
 ```bash
-git clone https://github.com/Ipsen87k/filersmanager/
+git clone https://github.com/Ipsen87k/coffee_image
 
 cd /filersmanager
 
